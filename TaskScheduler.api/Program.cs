@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using TaskScheduler.Api.Data;
+using TaskScheduler.api.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
