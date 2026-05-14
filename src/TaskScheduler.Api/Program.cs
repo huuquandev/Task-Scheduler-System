@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using TaskScheduler.Application.Interfaces;
-using TaskScheduler.Application.Tasks.Handlers;
 using TaskScheduler.Infrastructure.Persistence;
 using TaskScheduler.Infrastructure.Repositories;
 using MediatR;
@@ -11,6 +10,12 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// Swagger with annotations
+builder.Services.AddSwaggerGen(c =>
+{
+    c.EnableAnnotations();
+});
 
 // MediatR
 builder.Services.AddMediatR(cfg =>

@@ -7,22 +7,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.7" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
-
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.7" />
-
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.7">
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
-
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.4" />
+    <ProjectReference Include="..\TaskScheduler.Application\TaskScheduler.Application.csproj" />
+    <ProjectReference Include="..\TaskScheduler.Infrastructure\TaskScheduler.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\TaskScheduler.Application\TaskScheduler.Application.csproj" />
-    <ProjectReference Include="..\TaskScheduler.Infrastructure\TaskScheduler.Infrastructure.csproj" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.1.7" />
+    <PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="10.1.7" />
   </ItemGroup>
 
 </Project>

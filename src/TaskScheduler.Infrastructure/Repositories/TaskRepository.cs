@@ -9,7 +9,7 @@ using TaskScheduler.Infrastructure.Persistence;
 
 namespace TaskScheduler.Infrastructure.Repositories
 {
-    public class TaskRepository
+    public class TaskRepository : ITaskRepository
     {
         private readonly ApplicationDbContext _context;
 

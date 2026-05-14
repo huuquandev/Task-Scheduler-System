@@ -7,8 +7,5 @@ using TaskScheduler.Domain.Entities;
 
 namespace TaskScheduler.Application.Tasks.Queries.GetTasks
 {
-    public class GetTasksQuery
-    {
-        public record GetTasksQuery() : IRequest<List<ScheduledTask>>;
-    }
+    public record GetTasksQuery() : IRequest<List<ScheduledTask>>;
 }

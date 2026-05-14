@@ -9,7 +9,6 @@ namespace TaskScheduler.Application.Interfaces
     public interface ITaskRepository
     {
         Task AddAsync(ScheduledTask task);
-        Task<List<ScheduledTask>> GetAllAsync();
-        
+        Task<List<ScheduledTask>> GetAllAsync();        
     }
 }

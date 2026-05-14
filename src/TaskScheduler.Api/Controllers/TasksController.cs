@@ -4,6 +4,7 @@ using System.Linq;
 using MediatR;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Swashbuckle.AspNetCore.Annotations;
 using TaskScheduler.Application.Tasks.Commands.CreateTask;
 using TaskScheduler.Application.Tasks.Queries.GetTasks;
 
@@ -20,8 +21,8 @@ namespace TaskScheduler.Api.Controllers
             _mediator = mediator;
         }
 
-        [HttpPost]
-        [Route("create")]
+        [HttpPost("create")]
+        [SwaggerOperation(Summary = "Creates a new scheduled task.")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> Create(CreateTaskCommand cmd)
         {
@@ -29,8 +30,8 @@ namespace TaskScheduler.Api.Controllers
             return Ok(result);
         }
 
-        [HttpGet]
-        [Route("getall")]
+        [HttpGet("getall")]
+        [SwaggerOperation(Summary = "Retrieves all scheduled tasks.")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> Get()
         {

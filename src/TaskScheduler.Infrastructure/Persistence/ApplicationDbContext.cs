@@ -7,7 +7,7 @@ using TaskScheduler.Domain.Entities;
 
 namespace TaskScheduler.Infrastructure.Persistence
 {
-    public class ApplicationDbContext
+    public class ApplicationDbContext : DbContext
     {
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
         {

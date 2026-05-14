@@ -19,7 +19,7 @@ namespace TaskScheduler.Application.Tasks.Queries.GetTasks
 
         public async Task<List<ScheduledTask>> Handle(GetTasksQuery request, CancellationToken cancellationToken)
         {
-            return await _repo.ListAllAsync();
+            return await _repo.GetAllAsync();
         }
     }
 }
