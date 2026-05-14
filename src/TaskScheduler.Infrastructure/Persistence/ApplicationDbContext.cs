@@ -3,15 +3,16 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using TaskScheduler.api.Models;
-namespace TaskScheduler.api.Data
+using TaskScheduler.Domain.Entities;
+
+namespace TaskScheduler.Infrastructure.Persistence
 {
-    public class ApplicationDbContext : DbContext
+    public class ApplicationDbContext
     {
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
         {
         }
 
-        public DbSet<User> Users => Set<User>();
+        public DbSet<ScheduledTask> ScheduledTasks => Set<ScheduledTask>();
     }
 }
