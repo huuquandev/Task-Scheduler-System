@@ -1,0 +1,277 @@
+---
+  Phân tích dự án Task Scheduler System
+
+  Hiện trạng codebase
+
+  Dự án đã có skeleton Clean Architecture với:
+  - 4 layer: Domain, Application, Infrastructure, Api
+  - Stack: .NET 10, EF Core + PostgreSQL, MediatR, Swagger
+  - Có sẵn: 1 entity (ScheduledTask), 1 command (CreateTask), 1 query (GetTasks), 1 repository, 1 controller
+
+  Nhưng còn rất thiếu — mới chỉ là scaffold cơ bản, chưa có business logic thực sự.
+
+  ---
+  Kiến trúc tổng thể (Clean Architecture)
+
+  TaskScheduler.Api          ← Presentation Layer (Controllers, Middleware)
+      ↓
+  TaskScheduler.Application  ← Business Logic (Commands, Queries, Handlers, DTOs, Interfaces)
+      ↓
+  TaskScheduler.Domain       ← Core (Entities, Enums, Domain Events, Value Objects)
+      ↑
+  TaskScheduler.Infrastructure ← Data Access (EF Core, Repositories, External Services)
+
+  Dependency rule: Mũi tên chỉ đi vào trong. Domain không phụ thuộc ai. Infrastructure implement interface từ Application.
+
+  ---
+  Những việc cần làm — theo từng layer
+
+  ---
+  1. DOMAIN LAYER — Nền tảng của toàn bộ hệ thống
+
+  Việc cần làm:
+
+  a) Hoàn thiện Entity ScheduledTask
+  - Thêm các field còn thiếu: Description, LastRunAt, NextRunAt, RetryCount, MaxRetries, JobType, Payload (JSON config)
+  - Dùng enum thay string cho Status: Active, Paused, Running, Failed, Completed
+  - Thêm UpdatedAt
+  - Apply private setter để bảo vệ state — entity chỉ thay đổi qua method
+
+  b) Thêm Domain Methods (behavior)
+  ScheduledTask.Activate()
+  ScheduledTask.Pause()
+  ScheduledTask.MarkAsRunning()
+  ScheduledTask.MarkAsFailed(reason)
+  ScheduledTask.MarkAsCompleted()
+  ScheduledTask.UpdateNextRunTime()
+
+  c) Domain Events
+  - TaskCreatedEvent
+  - TaskStatusChangedEvent
+  - TaskFailedEvent
+  - Gắn vào entity, dispatch qua MediatR khi save
+
+  d) Value Objects (nếu muốn rich domain)
+  - CronExpression — validate cron format tại đây, không để controller validate
+
+  e) Thêm entity TaskExecutionLog
+  - Ghi lại từng lần chạy: StartedAt, FinishedAt, Duration, Status, ErrorMessage
+
+  ---
+  2. APPLICATION LAYER — Business Use Cases
+
+  Việc cần làm:
+
+  a) Hoàn thiện Commands
+
+  ┌────────────────────┬──────────────────────────────────────────────┐
+  │      Command       │                   Mục đích                   │
+  ├────────────────────┼──────────────────────────────────────────────┤
+  │ CreateTaskCommand  │ Tạo task mới (đã có, cần bổ sung validation) │
+  ├────────────────────┼──────────────────────────────────────────────┤
+  │ UpdateTaskCommand  │ Sửa Name, CronExpression, Description        │
+  ├────────────────────┼──────────────────────────────────────────────┤
+  │ DeleteTaskCommand  │ Xóa task                                     │
+  ├────────────────────┼──────────────────────────────────────────────┤
+  │ PauseTaskCommand   │ Tạm dừng                                     │
+  ├────────────────────┼──────────────────────────────────────────────┤
+  │ ResumeTaskCommand  │ Kích hoạt lại                                │
+  ├────────────────────┼──────────────────────────────────────────────┤
+  │ TriggerTaskCommand │ Chạy thủ công ngay lập tức                   │
+  └────────────────────┴──────────────────────────────────────────────┘
+
+  b) Hoàn thiện Queries
+
+  ┌───────────────────────────┬─────────────────────────────────────────────┐
+  │           Query           │                  Mục đích                   │
+  ├───────────────────────────┼─────────────────────────────────────────────┤
+  │ GetTasksQuery             │ Lấy tất cả (đã có, cần pagination + filter) │
+  ├───────────────────────────┼─────────────────────────────────────────────┤
+  │ GetTaskByIdQuery          │ Lấy 1 task theo ID                          │
+  ├───────────────────────────┼─────────────────────────────────────────────┤
+  │ GetTaskExecutionLogsQuery │ Lịch sử chạy của 1 task                     │
+  ├───────────────────────────┼─────────────────────────────────────────────┤
+  │ GetTasksDashboardQuery    │ Thống kê: tổng task, đang chạy, failed...   │
+  └───────────────────────────┴─────────────────────────────────────────────┘
+
+  c) DTOs (Data Transfer Objects)
+  - TaskDto — trả về cho client (không expose entity trực tiếp — hiện tại đang sai)
+  - TaskSummaryDto — dùng cho danh sách
+  - ExecutionLogDto
+  - Dùng AutoMapper hoặc manual mapping để convert Entity → DTO
+
+  d) Validation với FluentValidation
+  - CreateTaskCommandValidator — validate Name, CronExpression format
+  - UpdateTaskCommandValidator
+  - Đăng ký pipeline behavior: ValidationBehavior<TRequest, TResponse>
+
+  e) Pipeline Behaviors (MediatR)
+  - ValidationBehavior — chạy validator trước handler
+  - LoggingBehavior — log mọi request/response
+  - TransactionBehavior — wrap DB transaction (nếu cần)
+
+  f) Interfaces cần bổ sung
+  - ITaskRepository — thêm: GetByIdAsync, UpdateAsync, DeleteAsync, GetPagedAsync
+  - IExecutionLogRepository
+  - ISchedulerService — interface để Application gọi scheduler mà không biết implementation
+  - IDateTimeProvider — inject DateTime thay vì gọi trực tiếp (để test dễ)
+
+  ---
+  3. INFRASTRUCTURE LAYER — Triển khai kỹ thuật
+
+  Việc cần làm:
+
+  a) Hoàn thiện ApplicationDbContext
+  - Thêm DbSet<TaskExecutionLog>
+  - Cấu hình Entity via IEntityTypeConfiguration<T> (không để tất cả trong OnModelCreating)
+  - ScheduledTaskConfiguration.cs — mapping, index, constraint
+
+  b) Hoàn thiện Repository
+  - TaskRepository: implement đủ GetByIdAsync, UpdateAsync, DeleteAsync, GetPagedAsync
+  - ExecutionLogRepository
+  - Có thể thêm GenericRepository<T> nếu muốn tái sử dụng
+
+  c) EF Core Migrations
+  - Tạo migration đầu tiên: InitialCreate
+  - Migration 2: AddExecutionLog
+  - Chạy migration tự động khi startup (hoặc dùng dotnet ef database update)
+
+  d) Scheduler Engine — phần quan trọng nhất của dự án
+
+  Đây là core feature. Có 2 cách:
+
+  Option 1 — Dùng Hangfire (đơn giản, production-ready)
+  - Tích hợp Hangfire với PostgreSQL storage
+  - HangfireSchedulerService : ISchedulerService
+  - Khi task được tạo/update → đăng ký/cập nhật recurring job trong Hangfire
+  - Hangfire tự handle cron, retry, dashboard
+
+  Option 2 — Dùng Quartz.NET (flexible hơn, nhiều config hơn)
+  - QuartzSchedulerService : ISchedulerService
+  - Tự quản lý job triggers
+
+  Recommend: Hangfire vì dễ setup, có built-in dashboard, persistent jobs.
+
+  e) Background Service
+  - TaskExecutionService : BackgroundService — chạy khi có trigger, gọi handler, ghi log
+
+  f) External Services (nếu cần)
+  - IEmailNotificationService — gửi email khi task fail
+  - IWebhookService — call webhook sau khi task chạy xong
+
+  ---
+  4. API LAYER — Presentation
+
+  Việc cần làm:
+
+  a) Hoàn thiện Controllers
+
+  TasksController:
+  - POST /api/v1/tasks — tạo task
+  - GET /api/v1/tasks — danh sách (có pagination, filter theo status)
+  - GET /api/v1/tasks/{id} — chi tiết 1 task
+  - PUT /api/v1/tasks/{id} — cập nhật
+  - DELETE /api/v1/tasks/{id} — xóa
+  - POST /api/v1/tasks/{id}/pause — tạm dừng
+  - POST /api/v1/tasks/{id}/resume — kích hoạt lại
+  - POST /api/v1/tasks/{id}/trigger — chạy thủ công
+
+  ExecutionLogsController:
+  - GET /api/v1/tasks/{id}/logs — lịch sử chạy
+  - GET /api/v1/tasks/{id}/logs/{logId} — chi tiết 1 lần chạy
+
+  DashboardController:
+  - GET /api/v1/dashboard — thống kê tổng quan
+
+  b) Middleware
+  - ExceptionHandlingMiddleware — bắt exception toàn cục, trả về chuẩn format
+  - Chuẩn hóa response: ApiResponse<T> wrapper
+
+  c) Authentication & Authorization
+  - JWT Bearer Authentication
+  - AuthController: POST /api/v1/auth/login, POST /api/v1/auth/register
+  - Bảo vệ các endpoint bằng [Authorize]
+
+  d) API Versioning
+  - Đã có /v1/ trong route, cần cấu hình ApiVersioning chính thức
+
+  e) Rate Limiting
+  - Giới hạn request (đặc biệt /trigger) để tránh spam
+
+  f) Swagger
+  - Bổ sung XML comments, request/response examples
+  - Thêm JWT auth vào Swagger UI
+
+  ---
+  Thứ tự triển khai (Roadmap)
+
+  Giai đoạn 1 — Core Foundation
+  ├── Hoàn thiện Domain Entity + Enums + Value Objects
+  ├── Thêm TaskExecutionLog entity
+  ├── Tạo đủ DTOs + AutoMapper profiles
+  ├── Implement FluentValidation + Pipeline Behaviors
+  └── Tạo đầy đủ Commands/Queries/Handlers
+
+  Giai đoạn 2 — Data Layer
+  ├── Hoàn thiện DbContext + Entity Configurations
+  ├── Implement đầy đủ Repositories
+  ├── Tạo Migrations
+  └── Seed data (optional)
+
+  Giai đoạn 3 — Scheduler Engine
+  ├── Tích hợp Hangfire
+  ├── Implement ISchedulerService
+  ├── Background Service cho execution
+  └── Ghi ExecutionLog sau mỗi lần chạy
+
+  Giai đoạn 4 — API
+  ├── Hoàn thiện Controllers (CRUD + actions)
+  ├── ExceptionHandlingMiddleware + chuẩn response
+  ├── JWT Authentication
+  └── Hoàn thiện Swagger
+
+  Giai đoạn 5 — Quality
+  ├── Unit Tests (Domain + Application handlers)
+  ├── Integration Tests (API endpoints)
+  └── Rate Limiting + Logging (Serilog)
+
+  ---
+  Những vấn đề cần sửa ngay trong code hiện tại
+
+  ┌───────────────────────────────┬──────────────────────┬─────────────────────────────────────────────┐
+  │            Vấn đề             │         File         │                    Mô tả                    │
+  ├───────────────────────────────┼──────────────────────┼─────────────────────────────────────────────┤
+  │ Query trả về Entity trực tiếp │ GetTasksHandler.cs   │ Phải dùng DTO, không expose entity ra ngoài │
+  ├───────────────────────────────┼──────────────────────┼─────────────────────────────────────────────┤
+  │ Status dùng string            │ ScheduledTask.cs     │ Dùng enum để type-safe                      │
+  ├───────────────────────────────┼──────────────────────┼─────────────────────────────────────────────┤
+  │ Thiếu validation              │ CreateTaskCommand.cs │ Bất kỳ cron nào cũng được tạo               │
+  ├───────────────────────────────┼──────────────────────┼─────────────────────────────────────────────┤
+
+  Giai đoạn 4 — API
+  ├── Hoàn thiện Controllers (CRUD + actions)
+  ├── ExceptionHandlingMiddleware + chuẩn response
+  ├── JWT Authentication
+  └── Hoàn thiện Swagger
+
+  Giai đoạn 5 — Quality
+  ├── Unit Tests (Domain + Application handlers)
+  ├── Integration Tests (API endpoints)
+  └── Rate Limiting + Logging (Serilog)
+
+  ---
+  Những vấn đề cần sửa ngay trong code hiện tại
+
+  ┌───────────────────────────────┬──────────────────────┬─────────────────────────────────────────────┐
+  │            Vấn đề             │         File         │                    Mô tả                    │
+  ├───────────────────────────────┼──────────────────────┼─────────────────────────────────────────────┤
+  │ Query trả về Entity trực tiếp │ GetTasksHandler.cs   │ Phải dùng DTO, không expose entity ra ngoài │
+  ├───────────────────────────────┼──────────────────────┼─────────────────────────────────────────────┤
+  │ Status dùng string            │ ScheduledTask.cs     │ Dùng enum để type-safe                      │
+  ├───────────────────────────────┼──────────────────────┼─────────────────────────────────────────────┤
+  │ Thiếu validation              │ CreateTaskCommand.cs │ Bất kỳ cron nào cũng được tạo               │
+  ├───────────────────────────────┼──────────────────────┼─────────────────────────────────────────────┤
+  │ AddSwaggerGen gọi 2 lần       │ Program.cs           │ Duplicate registration                      │
+  └───────────────────────────────┴──────────────────────┴─────────────────────────────────────────────┘
+
+  ---

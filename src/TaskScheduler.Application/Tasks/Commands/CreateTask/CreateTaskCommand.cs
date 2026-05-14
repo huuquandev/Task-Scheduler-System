@@ -6,6 +6,11 @@ using MediatR;
 
 namespace TaskScheduler.Application.Tasks.Commands.CreateTask
 {
-    public record CreateTaskCommand(string Name, string CronExpression) : IRequest<Guid>;
-
+    public record CreateTaskCommand(
+        string Name,
+        string Description,
+        string CronExpression,
+        string Command,
+        int MaxRetries
+    ) : IRequest<Guid>;
 }

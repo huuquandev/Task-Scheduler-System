@@ -1,0 +1,144 @@
+ ---
+  Giai đoạn 1 — Core Foundation
+
+  Bước 1.1: Hoàn thiện Domain Entity
+
+  Mục tiêu: Entity ScheduledTask phải phản ánh đúng business, không chỉ là túi chứa data.
+
+  Bạn cần hiểu 3 nguyên tắc:
+
+  1. Dùng Enum thay String cho Status
+  Hiện tại Status = "Active" — string dễ typo, không type-safe. Tạo file Enums/TaskStatus.cs trong Domain với các giá trị:
+  - Pending — vừa tạo, chưa chạy lần nào
+  - Active — đang được schedule
+  - Running — đang chạy lúc này
+  - Paused — bị tạm dừng thủ công
+  - Failed — lần chạy gần nhất bị lỗi
+  - Completed — đã hoàn thành (task 1 lần, không recurring)
+
+  2. Private setter — bảo vệ state
+  Thay vì public string Status { get; set; }, dùng public TaskStatus Status { get; private set; }. Như vậy chỉ có method của chính entity mới đổi được Status, tránh code bên ngoài gán tùy tiện.
+
+  3. Domain Methods — behavior nằm trong entity
+  Thêm các method:
+  - Activate() — set Status = Active
+  - Pause() — set Status = Paused, chỉ cho phép nếu đang Active
+  - MarkAsRunning() — set Status = Running + ghi LastRunAt = now
+  - MarkAsFailed(string reason) — set Status = Failed + tăng RetryCount
+  - MarkAsCompleted() — set Status = Completed
+
+  Các field cần thêm vào entity:
+  - Description — mô tả task
+  - LastRunAt (nullable DateTime) — lần chạy gần nhất
+  - NextRunAt (nullable DateTime) — lần chạy tiếp theo (tính từ cron)
+  - RetryCount — đã retry bao nhiêu lần
+  - MaxRetries — giới hạn retry
+  - IsDeleted (bool) — soft delete thay vì xóa thật
+
+  ---
+  Bước 1.2: Thêm Entity TaskExecutionLog
+
+  Mục tiêu: Ghi lại mỗi lần task chạy để có lịch sử.
+
+  File: Domain/Entities/TaskExecutionLog.cs
+
+  Các field cần có:
+  - Id (Guid)
+  - TaskId (Guid) — foreign key tới ScheduledTask
+  - ScheduledTask — navigation property
+  - StartedAt (DateTime)
+  - FinishedAt (nullable DateTime)
+  - Status — dùng enum riêng: Running, Success, Failed
+  - ErrorMessage (nullable string) — lý do thất bại
+  - DurationMs (nullable long) — thời gian chạy tính bằng milliseconds
+
+  Mối quan hệ: 1 ScheduledTask có nhiều TaskExecutionLog. Trong entity ScheduledTask thêm ICollection<TaskExecutionLog> ExecutionLogs.
+
+  ---
+  Bước 1.3: Value Object CronExpression
+
+  Mục tiêu: Thay vì lưu cron là plain string, tạo Value Object để validate format tại tầng Domain.
+
+  Value Object khác Entity ở chỗ: không có Id, so sánh bằng value chứ không bằng reference.
+
+  File: Domain/ValueObjects/CronExpression.cs
+
+  Logic bên trong:
+  - Constructor nhận string value
+  - Validate ngay trong constructor: nếu cron format sai thì throw DomainException
+  - Expose property Value để lấy string ra
+  - Override Equals và GetHashCode
+
+  Để validate cron format, bạn dùng thư viện Cronos (NuGet: Cronos) — nó parse được cron expression và tính được NextRunAt tiếp theo.
+
+  Cronos.CronExpression.Parse(value)  // throws nếu sai format
+
+  Sau đó trong ScheduledTask, đổi string CronExpression thành CronExpression CronExpression.
+
+  ---
+  Bước 1.4: Domain Events
+
+  Mục tiêu: Khi entity thay đổi state, nó phát ra event. Các handler khác lắng nghe và phản ứng (gửi email, cập nhật cache, v.v.) mà không cần entity biết.
+
+  Cách implement:
+
+  1. Tạo interface IDomainEvent trong Domain (marker interface, không có method)
+  2. Tạo abstract class BaseEntity chứa List<IDomainEvent> DomainEvents và method AddDomainEvent()
+  3. ScheduledTask kế thừa BaseEntity
+  4. Trong method MarkAsFailed(), gọi AddDomainEvent(new TaskFailedEvent(this.Id))
+
+  Events cần tạo (folder Domain/Events/):
+  - TaskCreatedEvent
+  - TaskFailedEvent
+  - TaskCompletedEvent
+
+  Dispatch events: Sau khi SaveChangesAsync(), override SaveChangesAsync trong ApplicationDbContext để lấy tất cả DomainEvents từ các entity đang tracked, rồi publish qua MediatR.
+
+  ---
+  Tổng kết Giai đoạn 1 — Cấu trúc file sau khi xong
+
+  TaskScheduler.Domain/
+  ├── Entities/
+  │   ├── ScheduledTask.cs        ← hoàn thiện với private setters + methods
+  │   └── TaskExecutionLog.cs     ← mới
+  ├── Enums/
+  │   ├── TaskStatus.cs           ← mới
+  │   └── ExecutionStatus.cs      ← mới
+  ├── Events/
+  │   ├── TaskCreatedEvent.cs     ← mới
+  │   ├── TaskFailedEvent.cs      ← mới
+  │   └── TaskCompletedEvent.cs   ← mới
+  ├── ValueObjects/
+  - TaskCreatedEvent
+  - TaskFailedEvent
+  - TaskCompletedEvent
+
+  Dispatch events: Sau khi SaveChangesAsync(), override SaveChangesAsync trong ApplicationDbContext để lấy tất cả DomainEvents từ các entity đang tracked, rồi publish qua MediatR.
+
+  ---
+  Tổng kết Giai đoạn 1 — Cấu trúc file sau khi xong
+
+  TaskScheduler.Domain/
+  ├── Entities/
+  │   ├── ScheduledTask.cs        ← hoàn thiện với private setters + methods
+  │   └── TaskExecutionLog.cs     ← mới
+  ├── Enums/
+  │   ├── TaskStatus.cs           ← mới
+  │   └── ExecutionStatus.cs      ← mới
+  ├── Events/
+  │   ├── TaskCreatedEvent.cs     ← mới
+  │   ├── TaskFailedEvent.cs      ← mới
+  │   └── TaskCompletedEvent.cs   ← mới
+  ├── ValueObjects/
+  │   └── CronExpression.cs       ← mới
+  └── Common/
+      ├── IDomainEvent.cs         ← mới
+      └── BaseEntity.cs           ← mới
+
+  ---
+  Câu hỏi kiểm tra để bạn tự verify:
+  - Entity ScheduledTask có thể bị set Status = "abc" từ bên ngoài không? (Phải là: Không)
+  - Nếu truyền cron sai format, lỗi xảy ra ở đâu? (Phải là: tại Domain, trước khi vào DB)
+  - TaskExecutionLog có FK về ScheduledTask không?
+
+  ---
