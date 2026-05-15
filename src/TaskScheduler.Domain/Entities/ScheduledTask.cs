@@ -125,5 +125,21 @@ namespace TaskScheduler.Domain.Entities
         {
             return RetryCount < MaxRetries;
         }
+        public void Update(string name, string description, string cronExpression, string command, int maxRetries)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                throw new ArgumentException("Name invalid");
+                
+            if (maxRetries < 0)
+                throw new ArgumentException("MaxRetries invalid");
+
+            Name = name;
+            Description = description;
+            CronExpression = CronExpression.Create(cronExpression);
+            Command = command;
+            MaxRetries = maxRetries;
+
+            UpdatedAt = DateTime.UtcNow;
+        }
     }
 }

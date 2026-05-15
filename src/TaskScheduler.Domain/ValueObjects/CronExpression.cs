@@ -8,7 +8,7 @@ namespace TaskScheduler.Domain.ValueObjects
 {
     public sealed class CronExpression : IEquatable<CronExpression>
     {
-        public string Value { get; private set; }
+        public string Value { get; private set; } = default;
         private CronExpression()
         {
         }

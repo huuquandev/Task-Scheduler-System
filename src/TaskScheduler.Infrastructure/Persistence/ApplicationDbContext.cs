@@ -24,15 +24,14 @@ namespace TaskScheduler.Infrastructure.Persistence
 
                 entity.Property(x => x.Name).IsRequired();
 
-                entity.Property(x => x.Description);
+                entity.Property(x => x.Description);    
 
                 entity.Property(x => x.Command).IsRequired();
 
-                // ⭐ FIX QUAN TRỌNG NHẤT
                 entity.Property(x => x.CronExpression)
                     .HasConversion(
-                        v => v.Value,                    // Domain -> DB (string)
-                        v => CronExpression.Create(v)   // DB -> Domain
+                        v => v.Value,                   
+                        v => CronExpression.Create(v)   
                     )
                     .HasMaxLength(100)
                     .IsRequired();
