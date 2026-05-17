@@ -55,6 +55,7 @@ TemporaryDependencyNodeTargetIdentifier=net10.0
 
 [sourceFiles]
 AssemblyReference.cs
+Common/Behaviors/ValidationBehavior.cs
 Interfaces/ITaskRepository.cs
 obj/Debug/net10.0/
  .NETCoreApp,Version=v10.0.AssemblyAttributes.cs
@@ -62,10 +63,38 @@ obj/Debug/net10.0/
  TaskScheduler.Application.GlobalUsings.g.cs
 Tasks/Commands/CreateTask/
  CreateTaskCommand.cs
+ CreateTaskCommandValidator.cs
  CreateTaskHandler.cs
+Tasks/Commands/DeleteTask/
+ DeleteTaskCommand.cs
+ DeleteTaskHandler.cs
+Tasks/Commands/PauseTask/
+ PauseTaskCommand.cs
+ PauseTaskHandler.cs
+Tasks/Commands/ResumeTask/
+ ResumeTaskCommand.cs
+ ResumeTaskHandler.cs
+Tasks/Commands/TriggerTask/
+ TriggerTaskCommand.cs
+ TriggerTaskHandler.cs
+Tasks/Commands/UpdateTask/
+ UpdateTaskCommand.cs
+ UpdateTaskHandler.cs
+Tasks/Queries/GetTaskById/
+ GetTaskByIdHandler.cs
+ GetTaskByIdQuery.cs
+ TaskDto.cs
+Tasks/Queries/GetTaskExecutionLogs/
+ ExecutionLogDto.cs
+ GetTaskExecutionLogsHandler.cs
+ GetTaskExecutionLogsQuery.cs
 Tasks/Queries/GetTasks/
  GetTasksHandler.cs
  GetTasksQuery.cs
+ TaskSummaryDto.cs
+Tasks/Queries/GetTasksDashBoard/
+ GetTasksDashboardHandler.cs
+ GetTasksDashboardQuery.cs
 
 [metadataReferences]
 ../TaskScheduler.Domain/obj/Debug/net10.0/ref/TaskScheduler.Domain.dll
