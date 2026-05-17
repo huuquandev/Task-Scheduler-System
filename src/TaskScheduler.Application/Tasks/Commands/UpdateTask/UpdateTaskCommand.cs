@@ -2,15 +2,16 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using MediatR;
 
 namespace TaskScheduler.Application.Tasks.Commands.UpdateTask
 {
     public record UpdateTaskCommand(
         Guid Id,
-        string Name,
-        string Description,
-        string CronExpression,
-        string Command,
-        int MaxRetries
+        string? Name,
+        string? Description,
+        string? CronExpression,
+        string? Command,
+        int? MaxRetries
     ) : IRequest<Guid>;
 }

@@ -13,29 +13,14 @@ namespace TaskScheduler.Infrastructure.Persistence
         }
 
         public DbSet<ScheduledTask> ScheduledTasks => Set<ScheduledTask>();
+        public DbSet<TaskExecutionLog> TaskExecutionLogs => Set<TaskExecutionLog>();
+
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
+            builder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
 
-            builder.Entity<ScheduledTask>(entity =>
-            {
-                entity.HasKey(x => x.Id);
-
-                entity.Property(x => x.Name).IsRequired();
-
-                entity.Property(x => x.Description);    
-
-                entity.Property(x => x.Command).IsRequired();
-
-                entity.Property(x => x.CronExpression)
-                    .HasConversion(
-                        v => v.Value,                   
-                        v => CronExpression.Create(v)   
-                    )
-                    .HasMaxLength(100)
-                    .IsRequired();
-            });
         }
     }
 }

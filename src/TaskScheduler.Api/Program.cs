@@ -7,6 +7,8 @@ using System.Reflection;
 using FluentValidation;
 using TaskScheduler.Application.Common.Behaviors;
 using TaskScheduler.Application.Tasks.Commands.CreateTask;
+using TaskScheduler.Application.Tasks.Commands.UpdateTask;
+using TaskScheduler.Application.Common.Mappings;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,9 +36,10 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 // DI
 builder.Services.AddScoped<ITaskRepository, TaskRepository>();
+builder.Services.AddScoped<ITaskExecutionLogRepository, TaskExecutionLogRepository>();
 builder.Services.AddValidatorsFromAssemblyContaining<CreateTaskCommandValidator>();
 builder.Services.AddTransient(typeof(IPipelineBehavior<,>),typeof(ValidationBehavior<,>));
-
+builder.Services.AddAutoMapper(typeof(TaskMappingProfile).Assembly);
 var app = builder.Build();
 
 app.UseSwagger();

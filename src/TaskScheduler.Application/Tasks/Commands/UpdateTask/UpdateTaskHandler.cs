@@ -2,7 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-
+using MediatR;
+using TaskScheduler.Application.Interfaces;
+using TaskScheduler.Domain.Entities;
+using TaskScheduler.Domain.ValueObjects;
 namespace TaskScheduler.Application.Tasks.Commands.UpdateTask
 {
     public class UpdateTaskHandler : IRequestHandler<UpdateTaskCommand, Guid>
@@ -18,26 +21,17 @@ namespace TaskScheduler.Application.Tasks.Commands.UpdateTask
             var task = await _repo.GetByIdAsync(request.Id);
             if (task == null)
                 throw new ArgumentException("Task not found.");
+                
+            if(task.IsDeleted)
+                throw new InvalidOperationException("Task deleted");
 
-            if(string.IsNullOrWhiteSpace(request.Name))
-                throw new ArgumentException("Task is required.");
-
-            if(string.IsNullOrWhiteSpace(request.Command))
-                throw new ArgumentException("Command is required.");
-
-            if (request.MaxRetries < 0 || request.MaxRetries > 10)
-                throw new ArgumentException("MaxRetries invalid");
-            
-            var existing = await _repo.GetByNameAsync(request.Name);   
-            if (existing != null && existing.Id != request.Id)
-                throw new ArgumentException("Task name already exists");
-            
+            var cron = request.CronExpression != null ? CronExpression.Create(request.CronExpression): task.CronExpression;
             task.Update(
-                request.Name,
-                request.Description,
-                request.CronExpression,
-                request.Command,
-                request.MaxRetries
+                request.Name ?? task.Name,
+                request.Description ?? task.Description,
+                cron,
+                request.Command ?? task.Command,
+                request.MaxRetries ?? task.MaxRetries
             );
 
             await _repo.UpdateAsync(task);

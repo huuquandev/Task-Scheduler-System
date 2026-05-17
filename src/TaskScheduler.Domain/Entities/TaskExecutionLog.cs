@@ -38,5 +38,62 @@ namespace TaskScheduler.Domain.Entities
 
             Status = TaskExecutionStatus.Running;
         }
+
+        public void MarkAsSuccess()
+        {
+            if (Status != TaskExecutionStatus.Running)
+            {
+                throw new InvalidOperationException(
+                    "Only running task can be completed.");
+            }
+
+            FinishedAt = DateTime.UtcNow;
+
+            Status = TaskExecutionStatus.Success;
+
+            DurationMs = CalculateDurationMs();
+        }
+
+        public void MarkAsFailed(string errorMessage)
+        {
+            if (Status != TaskExecutionStatus.Running)
+            {
+                throw new InvalidOperationException(
+                    "Only running task can fail.");
+            }
+
+            if (string.IsNullOrWhiteSpace(errorMessage))
+            {
+                throw new ArgumentException(
+                    "Error message is required.");
+            }
+
+            FinishedAt = DateTime.UtcNow;
+
+            Status = TaskExecutionStatus.Failed;
+
+            ErrorMessage = errorMessage;
+
+            DurationMs = CalculateDurationMs();
+        }
+
+        public void Retry()
+        {
+            FinishedAt = null;
+
+            ErrorMessage = null;
+
+            DurationMs = null;
+
+            StartedAt = DateTime.UtcNow;
+
+            Status = TaskExecutionStatus.Running;
+        }
+
+        private long CalculateDurationMs()
+        {
+            return (long)(DateTime.UtcNow - StartedAt)
+                .TotalMilliseconds;
+        }
     }
 }

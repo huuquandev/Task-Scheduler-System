@@ -74,7 +74,7 @@ namespace TaskScheduler.Domain.Entities
 
             UpdatedAt = DateTime.UtcNow;
         }
-        public void StartRunning()
+        public void MarkAsRunning()
         {
             Status = ScheduledTaskStatus.Running;
 
@@ -102,18 +102,16 @@ namespace TaskScheduler.Domain.Entities
             UpdatedAt = DateTime.UtcNow;
             AddDomainEvent(new TaskFailedEvent(Id, reason));
         }
-        public void Complete()
+        public void MarkAsCompleted()
         {
             Status = ScheduledTaskStatus.Completed;
         }
-         public void SetNextRun(DateTime nextRunAt)
+        public void UpdateNextRunTime()
         {
-            NextRunAt = nextRunAt;
+            var cron = Cronos.CronExpression.Parse(CronExpression.Value);
 
-            UpdatedAt = DateTime.UtcNow;
-            AddDomainEvent(new TaskCompletedEvent(Id));
+            NextRunAt = cron.GetNextOccurrence(DateTime.UtcNow);
         }
-
         public void SoftDelete()
         {
             IsDeleted = true;
@@ -121,11 +119,7 @@ namespace TaskScheduler.Domain.Entities
             UpdatedAt = DateTime.UtcNow;
         }
 
-        public bool CanRetry()
-        {
-            return RetryCount < MaxRetries;
-        }
-        public void Update(string name, string description, string cronExpression, string command, int maxRetries)
+        public void Update(string name, string description, CronExpression cronExpression, string command, int maxRetries)
         {
             if (string.IsNullOrWhiteSpace(name))
                 throw new ArgumentException("Name invalid");
@@ -135,7 +129,7 @@ namespace TaskScheduler.Domain.Entities
 
             Name = name;
             Description = description;
-            CronExpression = CronExpression.Create(cronExpression);
+            CronExpression = cronExpression;
             Command = command;
             MaxRetries = maxRetries;
 

@@ -19,14 +19,13 @@ namespace TaskScheduler.Application.Tasks.Commands.CreateTask
 
         public async Task<Guid> Handle(CreateTaskCommand request, CancellationToken cancellationToken)
         {   
-            var task = new ScheduledTask
-            {
-                Id = Guid.NewGuid(),
-                Name = request.Name,
-                Command = request.Command,
-                CronExpression = request.CronExpression,
-                MaxRetries = request.MaxRetries
-            };
+            var task = new ScheduledTask(
+                request.Name,
+                request.Description,
+                request.CronExpression,
+                request.Command,
+                request.MaxRetries
+            );
             
             await _repo.AddAsync(task);
 

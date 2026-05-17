@@ -55,7 +55,9 @@ TemporaryDependencyNodeTargetIdentifier=net10.0
 
 [sourceFiles]
 AssemblyReference.cs
-Common/Behaviors/ValidationBehavior.cs
+Common/
+ Behaviors/ValidationBehavior.cs
+ Mappings/TaskMappingProfile.cs
 Interfaces/ITaskRepository.cs
 obj/Debug/net10.0/
  .NETCoreApp,Version=v10.0.AssemblyAttributes.cs
@@ -78,6 +80,7 @@ Tasks/Commands/TriggerTask/
  TriggerTaskCommand.cs
  TriggerTaskHandler.cs
 Tasks/Commands/UpdateTask/
+ UpdateTaskComandValidator.cs
  UpdateTaskCommand.cs
  UpdateTaskHandler.cs
 Tasks/Queries/GetTaskById/
@@ -267,11 +270,17 @@ Tasks/Queries/GetTasksDashBoard/
  System.Xml.XPath.XDocument.dll
  WindowsBase.dll
 <NUGET>/
+ automapper.extensions.microsoft.dependencyinjection/12.0.1/lib/netstandard2.1/AutoMapper.Extensions.Microsoft.DependencyInjection.dll
+ automapper/12.0.1/lib/netstandard2.1/AutoMapper.dll
  cronos/0.13.0/lib/net6.0/Cronos.dll
+ fluentvalidation.dependencyinjectionextensions/12.1.1/lib/net8.0/FluentValidation.DependencyInjectionExtensions.dll
+ fluentvalidation/12.1.1/lib/net8.0/FluentValidation.dll
  mediatr.contracts/2.0.1/lib/netstandard2.0/MediatR.Contracts.dll
  mediatr/14.1.0/lib/net10.0/MediatR.dll
  microsoft.extensions.dependencyinjection.abstractions/10.0.0/lib/net10.0/Microsoft.Extensions.DependencyInjection.Abstractions.dll
  microsoft.extensions.logging.abstractions/10.0.0/lib/net10.0/Microsoft.Extensions.Logging.Abstractions.dll
+ microsoft.extensions.options/6.0.0/lib/netstandard2.1/Microsoft.Extensions.Options.dll
+ microsoft.extensions.primitives/6.0.0/lib/net6.0/Microsoft.Extensions.Primitives.dll
  microsoft.identitymodel.abstractions/8.14.0/lib/net9.0/Microsoft.IdentityModel.Abstractions.dll
  microsoft.identitymodel.jsonwebtokens/8.14.0/lib/net9.0/Microsoft.IdentityModel.JsonWebTokens.dll
  microsoft.identitymodel.logging/8.14.0/lib/net9.0/Microsoft.IdentityModel.Logging.dll

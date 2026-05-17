@@ -27,17 +27,12 @@ namespace TaskScheduler.Infrastructure.Repositories
 
         public async Task<List<ScheduledTask>> GetAllAsync()
         {
-            return await _context.ScheduledTasks.ToListAsync();
-        }
-
-        public async Task<ScheduledTask> GetByNameAsync(string name)
-        {
-            return await _context.ScheduledTasks.FirstOrDefaultAsync(t => t.Name == name);
+            return await _context.ScheduledTasks.Where(x => !x.IsDeleted).ToListAsync();
         }
 
         public async Task<ScheduledTask> GetByIdAsync(Guid id)
         {
-            return await _context.ScheduledTasks.FindAsync(id);
+            return await _context.ScheduledTasks.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
         }
 
         public async Task UpdateAsync(ScheduledTask task)
