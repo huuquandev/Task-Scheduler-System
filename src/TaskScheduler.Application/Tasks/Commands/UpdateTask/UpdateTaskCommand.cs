@@ -8,10 +8,10 @@ namespace TaskScheduler.Application.Tasks.Commands.UpdateTask
 {
     public record UpdateTaskCommand(
         Guid Id,
-        string? Name,
-        string? Description,
-        string? CronExpression,
-        string? Command,
-        int? MaxRetries
+        string? Name = null,
+        string? Description = null,
+        string? CronExpression = null,
+        string? Command = null,
+        int? MaxRetries = null
     ) : IRequest<Guid>;
 }

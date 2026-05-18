@@ -14,8 +14,6 @@ using TaskScheduler.Application.Common.Models;
 using TaskScheduler.Application.Tasks.Commands.PauseTask;
 using TaskScheduler.Application.Tasks.Commands.ResumeTask;
 using TaskScheduler.Application.Tasks.Commands.TriggerTask;
-using TaskScheduler.Application.Tasks.Queries.GetTaskExecutionLogs;
-using TaskScheduler.Application.Tasks.Queries.GetTasksDashBoard;
 
 namespace TaskScheduler.Api.Controllers
 {
@@ -30,7 +28,7 @@ namespace TaskScheduler.Api.Controllers
             _mediator = mediator;
         }
 
-        [HttpPost("create")]
+        [HttpPost]
         [SwaggerOperation(Summary = "Creates a new scheduled task.")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> Create(CreateTaskCommand cmd)
@@ -39,7 +37,7 @@ namespace TaskScheduler.Api.Controllers
             return Success(result,"Task Created successfully");        
     }
 
-        [HttpGet("getall")]
+        [HttpGet]
         [SwaggerOperation(Summary = "Retrieves all scheduled tasks.")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> Get()
@@ -48,16 +46,17 @@ namespace TaskScheduler.Api.Controllers
             return Success(result, "Success");
         }
 
-        [HttpPatch("update")]
+        [HttpPut("{id}")]
         [SwaggerOperation(Summary = "Update scheduled task.")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> Update(UpdateTaskCommand cmd)
+        public async Task<IActionResult> Update(Guid id, UpdateTaskCommand cmd)
         {
+            cmd.Id = id;
             var result = await _mediator.Send(cmd);
             return Success(result,"Task Updated successfully");        
         }
 
-        [HttpGet("getbyid")]
+        [HttpGet("{id}")]
         [SwaggerOperation(Summary = "Retrieves details scheduled tasks.")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> GetById(Guid id)
@@ -66,58 +65,44 @@ namespace TaskScheduler.Api.Controllers
             return Success(result, "Success");
         }
 
-        [HttpDelete("delete")]
+        [HttpDelete("{id}")]
         [SwaggerOperation(Summary = "Delete scheduled task.")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> Delete(DeleteTaskCommand cmd)
+        public async Task<IActionResult> Delete(Guid id, DeleteTaskCommand cmd)
         {
+            cmd.Id = id;
             var result = await _mediator.Send(cmd);
             return Success(result,"Task Deleted successfully");        
         }
 
-        [HttpPatch("pause")]
+        [HttpPost("{id}/pause")]
         [SwaggerOperation(Summary = "Pause scheduled task.")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> Pause(PauseTaskCommand cmd)
+        public async Task<IActionResult> Pause(Guid id, PauseTaskCommand cmd)
         {
+            cmd.Id = id;
             var result = await _mediator.Send(cmd);
             return Success(result,"Task Paused successfully");        
         }
 
-        [HttpPatch("resume")]
+        [HttpPost("{id}/resume")]
         [SwaggerOperation(Summary = "Resume scheduled task.")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> Resume(ResumeTaskCommand cmd)
+        public async Task<IActionResult> Resume(Guid id, ResumeTaskCommand cmd)
         {
+            cmd.Id = id;
             var result = await _mediator.Send(cmd);
             return Success(result,"Task has continue successfully");        
         }
 
-        [HttpPatch("trigger")]
+        [HttpPost("{id}/trigger")]
         [SwaggerOperation(Summary = "Trigger scheduled task.")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> Trigger(TriggerTaskCommand cmd)
+        public async Task<IActionResult> Trigger(Guid id, TriggerTaskCommand cmd)
         {
+            cmd.Id = id;
             var result = await _mediator.Send(cmd);
             return Success(result,"complete Task successfully.");        
-        }
-
-        [HttpGet("getExecutionlogs")]
-        [SwaggerOperation(Summary = "Retrieves execution logs for a scheduled task.")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> GetExecutionLogs(Guid id)
-        {
-            var result = await _mediator.Send(new GetTaskExecutionLogsQuery(id));
-            return Success(result, "Success");
-        }
-
-        [HttpGet("gettaskdashboard")]
-        [SwaggerOperation(Summary = "Retrieves task dashboard information for a scheduled task.")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> GetTaskDashboard()
-        {
-            var result = await _mediator.Send(new GetTasksDashboardQuery());
-            return Success(result, "Success");
         }
     }
 }

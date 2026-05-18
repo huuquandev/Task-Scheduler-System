@@ -27,6 +27,7 @@ namespace TaskScheduler.Application.Tasks.Commands.CreateTask
                 request.MaxRetries
             );
             
+            task.updateNextRunTime();
             await _repo.AddAsync(task);
 
             return task.Id;

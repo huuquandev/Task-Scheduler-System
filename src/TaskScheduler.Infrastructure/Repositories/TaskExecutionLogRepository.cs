@@ -36,5 +36,9 @@ namespace TaskScheduler.Infrastructure.Repositories
         {
             return await _context.TaskExecutionLogs.ToListAsync();
         }
+        public async Task<TaskExecutionLog> GetDetailsAsync(Guid id)
+        {
+            return await _context.TaskExecutionLogs.Include(x => x.ScheduledTask).FirstOrDefaultAsync(x => x.Id == id);
+        }
     }
 }
