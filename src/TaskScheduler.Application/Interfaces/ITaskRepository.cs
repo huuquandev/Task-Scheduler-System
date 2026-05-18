@@ -12,5 +12,6 @@ namespace TaskScheduler.Application.Interfaces
         Task<List<ScheduledTask>> GetAllAsync();   
         Task<ScheduledTask> GetByIdAsync(Guid id);
         Task UpdateAsync(ScheduledTask task);
+        Task<PagedResult<TaskDto>> GetPagedAsync(int page, int pageSize);
     }
 }

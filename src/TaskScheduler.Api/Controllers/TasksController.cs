@@ -104,5 +104,14 @@ namespace TaskScheduler.Api.Controllers
             var result = await _mediator.Send(cmd);
             return Success(result,"complete Task successfully.");        
         }
+        
+        [HttpGet("{page}/{pageSize}")]
+        [SwaggerOperation(Summary = "Retrieve paged scheduled tasks.")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetPaged(int page, int pageSize)
+        {
+            var result = await _mediator.Send(new GetTasksPagedQuery(page, pageSize));
+            return Success(result, "Success");
+        }
     }
 }

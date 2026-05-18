@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using TaskScheduler.Application.Interfaces;
 using TaskScheduler.Domain.Entities;
 using TaskScheduler.Infrastructure.Persistence;
+using TaskScheduler.Application.Common.Models;
 
 namespace TaskScheduler.Infrastructure.Repositories
 {
@@ -39,6 +40,26 @@ namespace TaskScheduler.Infrastructure.Repositories
         {
             _context.ScheduledTasks.Update(task);
             await _context.SaveChangesAsync();
+        }
+        public async Task<PagedResult<ScheduledTask>> GetPagedAsync(int page, int pageSize)
+        {
+            var query = _context.ScheduledTasks.Where(x => !x.IsDeleted);
+
+            var totalCount = await query.CountAsync();
+
+            var items = await query
+                .OrderByDescending(x => x.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return new PagedResult<ScheduledTask>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = page,
+                PageSize = pageSize
+            };
         }
     }
 }
