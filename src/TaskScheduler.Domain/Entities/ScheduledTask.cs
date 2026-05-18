@@ -90,6 +90,7 @@ namespace TaskScheduler.Domain.Entities
             }
 
             Status = ScheduledTaskStatus.Paused;
+            AddDomainEvent(new TaskPausedEvent(Id));
 
             UpdatedAt = DateTime.UtcNow;
         }
@@ -105,6 +106,7 @@ namespace TaskScheduler.Domain.Entities
         public void MarkAsCompleted()
         {
             Status = ScheduledTaskStatus.Completed;
+            AddDomainEvent(new TaskCompletedEvent(Id));
         }
         public void UpdateNextRunTime()
         {

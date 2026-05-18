@@ -1,0 +1,99 @@
+Giai đoạn 3 — Scheduler Engine
+
+  Đây là phần cốt lõi nhất. Hướng dẫn theo từng bước:
+
+  ---
+  Bước 3.1 — Thêm interface ISchedulerService
+
+  Tạo file TaskScheduler.Application/Interfaces/ISchedulerService.cs:
+
+  interface ISchedulerService
+  {
+      Task ScheduleTaskAsync(ScheduledTask task);       // đăng ký recurring job
+      Task UnscheduleTaskAsync(Guid taskId);            // hủy job khi pause/delete
+      Task RescheduleTaskAsync(ScheduledTask task);     // cập nhật khi update cron
+  }
+
+  Application layer chỉ biết interface này, không biết Hangfire cụ thể.
+
+  ---
+  Bước 3.2 — Cài Hangfire vào Infrastructure
+
+  Chạy lệnh:
+
+  dotnet add src/TaskScheduler.Infrastructure package Hangfire.AspNetCore
+  dotnet add src/TaskScheduler.Infrastructure package Hangfire.PostgreSql
+
+  Tạo file TaskScheduler.Infrastructure/Scheduling/HangfireSchedulerService.cs implement ISchedulerService. Trong đó:
+  - ScheduleTaskAsync → gọi RecurringJob.AddOrUpdate(taskId, () => ExecuteTask(taskId), cronExpression)
+  - UnscheduleTaskAsync → gọi RecurringJob.RemoveIfExists(taskId)
+  - RescheduleTaskAsync → gọi lại AddOrUpdate với cron mới
+
+  ---
+  Bước 3.3 — Tạo Background Service thực thi task
+
+  Tạo file TaskScheduler.Infrastructure/Scheduling/TaskExecutionService.cs:
+  - Method ExecuteTask(Guid taskId) sẽ được Hangfire gọi theo schedule
+  - Trong method này: lấy task từ DB → MarkAsRunning() → tạo TaskExecutionLog → chạy command → MarkAsSuccess/Failed() → update DB
+
+  Lưu ý: Logic này hiện đã có một phần trong TriggerTaskHandler.cs. Bạn nên tách ExecuteTask thành một service riêng để cả Hangfire (schedule tự động) và TriggerTaskHandler
+  (trigger thủ công) đều dùng chung, tránh lặp code.
+
+  ---
+  Bước 3.4 — Kết nối Commands với Scheduler
+
+  Sau khi có HangfireSchedulerService, cập nhật các handler:
+
+  ┌───────────────────┬──────────────────────────────────────────────────────────────────────────┐
+  │      Handler      │                                Hành động                                 │
+  ├───────────────────┼──────────────────────────────────────────────────────────────────────────┤
+  │ CreateTaskHandler │ Sau khi save → gọi ISchedulerService.ScheduleTaskAsync(task)             │
+  ├───────────────────┼──────────────────────────────────────────────────────────────────────────┤
+  │ UpdateTaskHandler │ Sau khi save → gọi ISchedulerService.RescheduleTaskAsync(task)           │
+  ├───────────────────┼──────────────────────────────────────────────────────────────────────────┤
+  │ PauseTaskHandler  │ Sau khi save → gọi ISchedulerService.UnscheduleTaskAsync(task.Id)        │
+  ├───────────────────┼──────────────────────────────────────────────────────────────────────────┤
+  │ ResumeTaskHandler │ Sau khi save → gọi ISchedulerService.ScheduleTaskAsync(task)             │
+  ├───────────────────┼──────────────────────────────────────────────────────────────────────────┤
+  │ DeleteTaskHandler │ Sau khi soft delete → gọi ISchedulerService.UnscheduleTaskAsync(task.Id) │
+  └───────────────────┴──────────────────────────────────────────────────────────────────────────┘
+
+  ---
+  Bước 3.5 — Đăng ký Hangfire trong Program.cs
+
+  // Thêm vào builder.Services
+  builder.Services.AddHangfire(config =>
+      config.UsePostgreSqlStorage(builder.Configuration.GetConnectionString("DefaultConnection")));
+  builder.Services.AddHangfireServer();
+  builder.Services.AddScoped<ISchedulerService, HangfireSchedulerService>();
+
+  // Thêm vào app pipeline
+  app.UseHangfireDashboard("/hangfire"); // dashboard để xem jobs
+
+  ---
+  Bước 3.6 — Fix vấn đề còn tồn đọng từ giai đoạn trước
+
+  Trước khi làm giai đoạn 3, nên fix 2 vấn đề này:
+
+  1. Thống nhất ITaskRepository: đổi GetPagedAsync trả về PagedResult<ScheduledTask> (không phải PagedResult<TaskDto>) — mapping DTO là việc của Application handler, không phải
+  Repository
+  2. Override SaveChangesAsync trong ApplicationDbContext để dispatch domain events:
+  public override async Task<int> SaveChangesAsync(CancellationToken ct = default)
+  {
+      var result = await base.SaveChangesAsync(ct);
+      // lấy domain events từ các entity đang tracked, publish qua MediatR
+      return result;
+  }
+
+  ---
+  Thứ tự làm:
+
+  1. Fix ITaskRepository (5 phút)
+  2. Fix SaveChangesAsync dispatch events (15 phút)
+  3. Tạo ISchedulerService interface
+  4. Cài Hangfire, implement HangfireSchedulerService
+  5. Tạo TaskExecutionService (tách logic từ TriggerTaskHandler)
+  6. Kết nối handlers với ISchedulerService
+  7. Register trong Program.cs, test với Hangfire Dashboard
+
+  Bắt đầu từ bước nào bạn muốn tôi hướng dẫn chi tiết hơn?
