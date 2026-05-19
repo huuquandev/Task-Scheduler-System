@@ -58,7 +58,7 @@ namespace TaskScheduler.Domain.Entities
 
             MaxRetries = maxRetries;
 
-            Status = ScheduledTaskStatus.Pending;
+            Status = ScheduledTaskStatus.Active;
 
             RetryCount = 0;
 
