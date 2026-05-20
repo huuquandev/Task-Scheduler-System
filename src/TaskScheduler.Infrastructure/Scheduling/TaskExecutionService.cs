@@ -7,7 +7,7 @@ using TaskScheduler.Domain.Entities;
 using TaskScheduler.Infrastructure.Persistence;
 namespace TaskScheduler.Infrastructure.Scheduling
 {
-    public class TaskExecutionService
+    public class TaskExecutionService : ITaskExecutionService
     {
         private readonly ITaskRepository _repo;
         private readonly ITaskExecutionLogRepository _logrepo;

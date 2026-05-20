@@ -40,10 +40,10 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 // DI
 builder.Services.AddScoped<ITaskRepository, TaskRepository>();
 builder.Services.AddScoped<ITaskExecutionLogRepository, TaskExecutionLogRepository>();
+builder.Services.AddScoped<ITaskExecutionService, TaskExecutionService>();
 builder.Services.AddValidatorsFromAssemblyContaining<CreateTaskCommandValidator>();
 builder.Services.AddTransient(typeof(IPipelineBehavior<,>),typeof(ValidationBehavior<,>));
 builder.Services.AddAutoMapper(typeof(TaskMappingProfile).Assembly);
-builder.Services.AddScoped<TaskExecutionService>();
 
 // Hangfire
 builder.Services.AddHangfire(config =>

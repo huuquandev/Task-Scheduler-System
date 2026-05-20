@@ -11,11 +11,11 @@ namespace TaskScheduler.Application.Tasks.Commands.TriggerTask
     public class TriggerTaskHandler : IRequestHandler<TriggerTaskCommand, Guid>
     {
         private readonly ITaskRepository _repo;
-        private readonly ISchedulerService _scheduler;
-        public TriggerTaskHandler(ITaskRepository repo, ISchedulerService scheduler)
+        private readonly ITaskExecutionService _executionService;
+        public TriggerTaskHandler(ITaskRepository repo, ITaskExecutionService executionService)
         {
             _repo = repo;
-            _scheduler = scheduler;
+            _executionService = executionService;
         }
         public async Task<Guid> Handle(TriggerTaskCommand request, CancellationToken cancellationToken)
         {
@@ -27,6 +27,7 @@ namespace TaskScheduler.Application.Tasks.Commands.TriggerTask
             if(task.IsDeleted)
                 throw new InvalidOperationException("Task deleted");
 
+            // Execute immediately
             await _executionService.ExecuteTask(task.Id);
 
             return task.Id;
