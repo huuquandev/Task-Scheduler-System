@@ -29,7 +29,7 @@ namespace TaskScheduler.Application.Tasks.Commands.ActiveTask
             if(task.Status != Domain.Enums.ScheduledTaskStatus.Pending)
                 throw new InvalidOperationException("Only pending tasks can be activated.");
 
-            task.Activate();
+            task.MarkAsActive();
             await _repo.UpdateAsync(task);
             // execution
             await _scheduler.ScheduleTaskAsync(task);

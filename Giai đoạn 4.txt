@@ -1,0 +1,89 @@
+  ---
+  Review Giai đoạn 3 — Scheduler Engine
+
+  Những gì đã làm đúng
+
+  Kiến trúc tốt:
+  - ISchedulerService đặt đúng trong Application layer — Application không biết Hangfire cụ thể, đúng Clean Architecture
+  - ITaskExecutionService tách riêng đúng theo hướng dẫn — cả Hangfire (TaskJob) và manual trigger (TriggerTaskHandler) đều dùng chung, không lặp code
+  - HangfireSchedulerService implement đúng: AddOrUpdate cho schedule/reschedule, RemoveIfExists cho unschedule
+  - TaskJob đóng vai trò wrapper mỏng để Hangfire resolve DI — đúng pattern
+  - ActiveTaskHandler và ResumeTaskHandler đều kết nối với ISchedulerService sau khi save
+  - Registration trong Program.cs đủ: Hangfire + PostgreSql + HangfireServer + DI ISchedulerService và ITaskExecutionService
+
+  ---
+  Những vấn đề cần lưu ý
+
+  1. CreateTaskHandler chưa gọi ISchedulerService.ScheduleTaskAsync
+
+  Theo bảng trong giai đoạn 3, sau khi tạo task phải schedule ngay. Hiện tại CreateTaskHandler chỉ AddAsync rồi return — task được tạo nhưng không bao giờ được Hangfire biết đến.
+
+  Tuy nhiên, đây có thể là chủ ý — task mới tạo có status Pending, phải qua ActiveTask mới được schedule. Nếu đây là thiết kế có chủ đích thì ổn, nhưng cần document rõ flow này.
+
+  2. TaskExecutionService không gọi UpdateNextRunTime()
+
+  Sau khi task chạy xong và MarkAsActive(), NextRunAt không được cập nhật. Nên gọi task.UpdateNextRunTime() trước khi UpdateAsync.
+
+  3. ScheduleTaskAsync và RescheduleTaskAsync giống hệt nhau
+
+  Cả hai đều gọi RecurringJob.AddOrUpdate với cùng logic. RescheduleTaskAsync hoàn toàn có thể delegate sang ScheduleTaskAsync hoặc bỏ hẳn một trong hai. Đây là code trùng lặp nhỏ nhưng nên dọn.
+
+  4. TriggerTaskHandler không check status Active
+
+  Hiện tại task có status bất kỳ (kể cả Failed, Paused) đều có thể bị trigger thủ công. Tùy business rule nhưng nên xem xét giới hạn chỉ Active hoặc Failed mới được trigger.
+
+  5. Hangfire Dashboard chưa có auth
+
+  app.UseHangfireDashboard("/hangfire") không có option nào — dashboard công khai, ai cũng truy cập được. Cần thêm DashboardOptions với authorization filter trước giai đoạn 4.
+
+  ---
+  Tổng kết
+
+  Giai đoạn 3 cơ bản hoàn thành — luồng chính hoạt động đúng. Hai điểm quan trọng nhất cần fix trước khi qua giai đoạn 4: UpdateNextRunTime() sau execution và xác định rõ flow Pending → Active →
+  Scheduled.
+
+  ---
+  Giai đoạn 4 — API Layer
+
+  Đây là giai đoạn hoàn thiện phần presentation. Có 4 nhóm việc:
+
+  4.1 — ExceptionHandlingMiddleware + chuẩn hóa response
+
+  Hiện tại nếu handler throw ArgumentException hay InvalidOperationException, ASP.NET trả về 500 với stack trace — không chuẩn và lộ thông tin nội bộ.
+
+  Cần làm:
+  - Tạo ExceptionHandlingMiddleware bắt toàn bộ exception, map sang HTTP status code phù hợp (ArgumentException → 404, InvalidOperationException → 400, mọi thứ khác → 500)
+  - Tạo ApiResponse<T> wrapper chuẩn hóa mọi response: { success, data, error, statusCode }
+  - Mọi controller action trả về ApiResponse<T> thay vì trả trực tiếp
+
+  4.2 — Hoàn thiện Controllers
+
+  Kiểm tra lại xem đã có đủ các endpoint chưa:
+  - POST /api/v1/tasks/{id}/activate — kích hoạt task Pending (hiện có ActiveTaskHandler)
+  - POST /api/v1/tasks/{id}/pause — tạm dừng
+  - POST /api/v1/tasks/{id}/resume — kích hoạt lại từ Paused
+  - POST /api/v1/tasks/{id}/trigger — chạy thủ công
+  - GET /api/v1/tasks/{id}/logs — lịch sử execution
+  - GET /api/v1/dashboard — thống kê tổng quan
+
+  4.3 — JWT Authentication
+
+  - Cài Microsoft.AspNetCore.Authentication.JwtBearer
+  - Tạo AuthController với POST /api/v1/auth/login (trả JWT token) và POST /api/v1/auth/register
+  - Thêm [Authorize] vào tất cả controller action
+  - Thêm JWT auth vào Swagger UI để test được từ browser
+  - Bảo vệ Hangfire Dashboard bằng JWT hoặc policy
+
+  4.4 — Swagger hoàn thiện
+
+  - Thêm XML doc comments cho request/response
+  - Thêm JWT Bearer scheme vào AddSwaggerGen
+  - Thêm response examples cho các endpoint chính
+
+  ---
+  Thứ tự làm giai đoạn 4:
+
+  1. ExceptionHandlingMiddleware + ApiResponse<T> — làm trước vì ảnh hưởng toàn bộ API
+  2. Kiểm tra và bổ sung endpoints còn thiếu trong Controllers
+  3. JWT Authentication
+  4. Swagger + Hangfire Dashboard auth

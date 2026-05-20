@@ -64,7 +64,7 @@ namespace TaskScheduler.Domain.Entities
             UpdatedAt = DateTime.UtcNow;
             AddDomainEvent(new TaskCreatedEvent(Id, Name));
         }
-        public void Activate()
+        public void MarkAsActive()
         {
             Status = ScheduledTaskStatus.Active;
             UpdatedAt = DateTime.UtcNow;

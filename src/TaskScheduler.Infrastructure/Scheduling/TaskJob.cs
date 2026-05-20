@@ -8,9 +8,9 @@ namespace TaskScheduler.Infrastructure.Scheduling
 {
     public class TaskJob
     {
-        private readonly TaskExecutionService _executionService;
+        private readonly ITaskExecutionService _executionService;
 
-        public TaskJob(TaskExecutionService executionService)
+        public TaskJob(ITaskExecutionService executionService)
         {
             _executionService = executionService;
         }

@@ -30,7 +30,7 @@ namespace TaskScheduler.Application.Tasks.Commands.ResumeTask
             if(task.Status != Domain.Enums.ScheduledTaskStatus.Paused)
                 throw new InvalidOperationException("Only paused tasks can be resumed.");
                 
-            task.Activate();
+            task.MarkAsActive();
             await _repo.UpdateAsync(task);
             // execution
             await _scheduler.ScheduleTaskAsync(task);

@@ -2,29 +2,27 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Hangfire;
 using TaskScheduler.Application.Interfaces;
 using TaskScheduler.Domain.Entities;
-using TaskScheduler.Infrastructure.Persistence;
 namespace TaskScheduler.Infrastructure.Scheduling
 {
     public class TaskExecutionService : ITaskExecutionService
     {
         private readonly ITaskRepository _repo;
         private readonly ITaskExecutionLogRepository _logrepo;
-        private readonly ApplicationDbContext _context;  
-        public TaskExecutionService(ITaskRepository repo, ITaskExecutionLogRepository logrepo, ApplicationDbContext context)
+        public TaskExecutionService(ITaskRepository repo, ITaskExecutionLogRepository logrepo)
         {
             _repo = repo;
             _logrepo = logrepo;
-            _context = context;
         }
 
         public async Task ExecuteTask(Guid taskId)
         {
             var task = await _repo.GetByIdAsync(taskId);
-            var log = new TaskExecutionLog(taskId);
 
             if (task == null) return;
+            var log = new TaskExecutionLog(taskId);
 
             try
             {
@@ -39,7 +37,8 @@ namespace TaskScheduler.Infrastructure.Scheduling
                 await ExecuteCommand(task);
 
                 // SUCCESS
-                task.MarkAsCompleted();
+                task.MarkAsActive();
+                task.UpdateNextRunTime();
                 log.MarkAsSuccess();
             }
             catch (Exception ex)
@@ -52,13 +51,20 @@ namespace TaskScheduler.Infrastructure.Scheduling
             }
             await _repo.UpdateAsync(task);
             await _logrepo.UpdateAsync(log);
-            await _context.SaveChangesAsync();
         }
 
         private Task ExecuteCommand(ScheduledTask task)
         {
             Console.WriteLine($"Executing task: {task.Id}");
 
+            return Task.CompletedTask;
+        }
+
+        public Task TriggerNow(Guid taskId)
+        {
+            BackgroundJob.Enqueue<ITaskExecutionService>(
+                x => x.ExecuteTask(taskId)
+            );
             return Task.CompletedTask;
         }
     }

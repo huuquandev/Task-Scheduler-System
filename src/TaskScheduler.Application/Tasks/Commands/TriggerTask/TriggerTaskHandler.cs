@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using MediatR;
 using TaskScheduler.Application.Interfaces;
 using TaskScheduler.Domain.Entities;
+using TaskScheduler.Domain.Enums;
 
 namespace TaskScheduler.Application.Tasks.Commands.TriggerTask
 {
@@ -27,8 +28,13 @@ namespace TaskScheduler.Application.Tasks.Commands.TriggerTask
             if(task.IsDeleted)
                 throw new InvalidOperationException("Task deleted");
 
+            if(task.Status != ScheduledTaskStatus.Active && task.Status != ScheduledTaskStatus.Failed)
+            {
+                throw new InvalidOperationException("Task cannot be triggered.");
+            }
+            
             // Execute immediately
-            await _executionService.ExecuteTask(task.Id);
+            await _executionService.TriggerNow(task.Id);
 
             return task.Id;
         }
