@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace TaskScheduler.Application.Tasks.Queries.GetDetailsTaskExcutionLog
+namespace TaskScheduler.Application.Tasks.Queries.GetDetailsTaskExecutionLog
 {
     public class TaskExecutionLogDetailsDto
     {

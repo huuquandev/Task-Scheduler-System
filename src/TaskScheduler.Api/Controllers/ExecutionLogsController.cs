@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using TaskScheduler.Application.Tasks.Queries.GetTaskExecutionLogs;
-
+using TaskScheduler.Application.Tasks.Queries.GetDetailsTaskExecutionLog;
 namespace TaskScheduler.Api.Controllers
 {
     public class ExecutionLogsController : BaseApiController

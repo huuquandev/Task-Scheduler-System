@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using AutoMapper;
 using TaskScheduler.Application.Tasks.Queries.GetTaskExecutionLogs;
-using TaskScheduler.Application.Tasks.Queries.GetDetailsTaskExcutionLog;
+using TaskScheduler.Application.Tasks.Queries.GetDetailsTaskExecutionLog;
 using TaskScheduler.Domain.Entities;
 
 namespace TaskScheduler.Application.Common.Mappings
@@ -14,7 +14,7 @@ namespace TaskScheduler.Application.Common.Mappings
         public ExecutionLogMappingProfile()
         {
             CreateMap<TaskExecutionLog, ExecutionLogDto>();
-            CreateMap<TaskExecutionLog, ExecutionLogDetailsDto>()
+            CreateMap<TaskExecutionLog, TaskExecutionLogDetailsDto>()
                 .ForMember(dest => dest.TaskName, opt => opt.MapFrom(src => src.ScheduledTask.Name))
                 .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()));;
 

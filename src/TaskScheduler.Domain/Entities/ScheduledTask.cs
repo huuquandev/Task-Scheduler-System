@@ -11,11 +11,7 @@ namespace TaskScheduler.Domain.Entities
 {
     public class ScheduledTask : BaseEntity
     {
-        public ICollection<TaskExecutionLog> ExecutionLogs
-        {
-            get;
-            private set;
-        } = new List<TaskExecutionLog>();
+        public ICollection<TaskExecutionLog> ExecutionLogs { get; private set; } = new List<TaskExecutionLog>();
         
         public Guid Id { get; private set; } //Id
 
@@ -58,7 +54,7 @@ namespace TaskScheduler.Domain.Entities
 
             MaxRetries = maxRetries;
 
-            Status = ScheduledTaskStatus.Active;
+            Status = ScheduledTaskStatus.Pending;
 
             RetryCount = 0;
 
@@ -71,7 +67,6 @@ namespace TaskScheduler.Domain.Entities
         public void Activate()
         {
             Status = ScheduledTaskStatus.Active;
-
             UpdatedAt = DateTime.UtcNow;
         }
         public void MarkAsRunning()

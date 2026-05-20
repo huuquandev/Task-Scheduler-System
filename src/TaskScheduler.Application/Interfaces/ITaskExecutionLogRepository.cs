@@ -12,5 +12,6 @@ namespace TaskScheduler.Application.Interfaces
         Task UpdateAsync(TaskExecutionLog task);
         Task<List<TaskExecutionLog>> GetByTaskIdAsync(Guid id);
         Task<List<TaskExecutionLog>> GetAllAsync();
+        Task<TaskExecutionLog> GetDetailsAsync(Guid id);
     }
 }

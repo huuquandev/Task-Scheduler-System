@@ -11,10 +11,12 @@ namespace TaskScheduler.Application.Tasks.Commands.UpdateTask
     public class UpdateTaskHandler : IRequestHandler<UpdateTaskCommand, Guid>
     {
         private readonly ITaskRepository _repo;
+        private readonly ISchedulerService _scheduler;
 
-        public UpdateTaskHandler(ITaskRepository repo)
+        public UpdateTaskHandler(ITaskRepository repo, ISchedulerService scheduler)
         {
             _repo = repo;
+            _scheduler = scheduler;
         }
         public async Task<Guid> Handle(UpdateTaskCommand request, CancellationToken cancellationToken)
         {
@@ -35,7 +37,9 @@ namespace TaskScheduler.Application.Tasks.Commands.UpdateTask
             );
 
             await _repo.UpdateAsync(task);
-
+            
+            // Reschedule the task in the scheduler
+            await _scheduler.RescheduleTaskAsync(task);
             return task.Id;
         }
     }

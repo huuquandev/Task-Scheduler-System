@@ -11,9 +11,11 @@ namespace TaskScheduler.Application.Tasks.Commands.PauseTask
     public class PauseTaskHandler : IRequestHandler<PauseTaskCommand, Guid>
     {
         private readonly ITaskRepository _repo;
-        public PauseTaskHandler(ITaskRepository repo)
+        private readonly ISchedulerService _scheduler;
+        public PauseTaskHandler(ITaskRepository repo, ISchedulerService scheduler)
         {
             _repo = repo;
+            _scheduler = scheduler;
         }
         public async Task<Guid> Handle(PauseTaskCommand request, CancellationToken cancellationToken)
         {
@@ -27,6 +29,9 @@ namespace TaskScheduler.Application.Tasks.Commands.PauseTask
 
             task.Pause();
             await _repo.UpdateAsync(task);
+
+            // Cancel the task in the scheduler if it's scheduled
+            await _scheduler.UnscheduleTaskAsync(task.Id);
 
             return task.Id;
             

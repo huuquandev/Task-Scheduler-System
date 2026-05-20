@@ -1,7 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(dir D:\\\\Project\\\\Task-Scheduler-System /s /b)"
-    ]
-  }
-}

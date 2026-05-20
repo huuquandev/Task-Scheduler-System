@@ -1,10 +1,13 @@
 using Microsoft.EntityFrameworkCore;
-using TaskScheduler.Application.Interfaces;
-using TaskScheduler.Infrastructure.Persistence;
-using TaskScheduler.Infrastructure.Repositories;
 using MediatR;
 using System.Reflection;
 using FluentValidation;
+using Hangfire;
+using Hangfire.PostgreSql;
+using TaskScheduler.Application.Interfaces;
+using TaskScheduler.Infrastructure.Persistence;
+using TaskScheduler.Infrastructure.Repositories;
+using TaskScheduler.Infrastructure.Scheduling;
 using TaskScheduler.Application.Common.Behaviors;
 using TaskScheduler.Application.Tasks.Commands.CreateTask;
 using TaskScheduler.Application.Tasks.Commands.UpdateTask;
@@ -40,8 +43,14 @@ builder.Services.AddScoped<ITaskExecutionLogRepository, TaskExecutionLogReposito
 builder.Services.AddValidatorsFromAssemblyContaining<CreateTaskCommandValidator>();
 builder.Services.AddTransient(typeof(IPipelineBehavior<,>),typeof(ValidationBehavior<,>));
 builder.Services.AddAutoMapper(typeof(TaskMappingProfile).Assembly);
-var app = builder.Build();
 
+// Hangfire
+builder.Services.AddHangfire(config =>config.UsePostgreSqlStorage(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddHangfireServer();
+builder.Services.AddScoped<ISchedulerService, HangfireSchedulerService>();
+
+var app = builder.Build();
+app.UseHangfireDashboard("/hangfire"); 
 app.UseSwagger();
 app.UseSwaggerUI();
 app.UseHttpsRedirection();

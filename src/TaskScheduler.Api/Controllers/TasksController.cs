@@ -14,7 +14,8 @@ using TaskScheduler.Application.Common.Models;
 using TaskScheduler.Application.Tasks.Commands.PauseTask;
 using TaskScheduler.Application.Tasks.Commands.ResumeTask;
 using TaskScheduler.Application.Tasks.Commands.TriggerTask;
-
+using TaskScheduler.Application.Tasks.Commands.ActiveTask;
+using TaskScheduler.Application.Tasks.Queries.GetTasksPaged;
 namespace TaskScheduler.Api.Controllers
 {
     [ApiController]
@@ -51,7 +52,7 @@ namespace TaskScheduler.Api.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> Update(Guid id, UpdateTaskCommand cmd)
         {
-            cmd.Id = id;
+            cmd = cmd with { Id = id };
             var result = await _mediator.Send(cmd);
             return Success(result,"Task Updated successfully");        
         }
@@ -70,7 +71,7 @@ namespace TaskScheduler.Api.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> Delete(Guid id, DeleteTaskCommand cmd)
         {
-            cmd.Id = id;
+            cmd = cmd with { Id = id };
             var result = await _mediator.Send(cmd);
             return Success(result,"Task Deleted successfully");        
         }
@@ -80,7 +81,7 @@ namespace TaskScheduler.Api.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> Pause(Guid id, PauseTaskCommand cmd)
         {
-            cmd.Id = id;
+            cmd = cmd with { Id = id };
             var result = await _mediator.Send(cmd);
             return Success(result,"Task Paused successfully");        
         }
@@ -90,7 +91,7 @@ namespace TaskScheduler.Api.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> Resume(Guid id, ResumeTaskCommand cmd)
         {
-            cmd.Id = id;
+            cmd = cmd with { Id = id };
             var result = await _mediator.Send(cmd);
             return Success(result,"Task has continue successfully");        
         }
@@ -100,7 +101,7 @@ namespace TaskScheduler.Api.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> Trigger(Guid id, TriggerTaskCommand cmd)
         {
-            cmd.Id = id;
+            cmd = cmd with { Id = id };
             var result = await _mediator.Send(cmd);
             return Success(result,"complete Task successfully.");        
         }
@@ -112,6 +113,16 @@ namespace TaskScheduler.Api.Controllers
         {
             var result = await _mediator.Send(new GetTasksPagedQuery(page, pageSize));
             return Success(result, "Success");
+        }
+        
+        [HttpGet("{id}/activate")]
+        [SwaggerOperation(Summary = "Activate a scheduled task.")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<IActionResult> Activate(Guid id, ActiveTaskCommand cmd)
+        {
+            cmd = cmd with { Id = id };
+            var result = await _mediator.Send(cmd);
+            return Success(result,"Task has activated successfully");        
         }
     }
 }

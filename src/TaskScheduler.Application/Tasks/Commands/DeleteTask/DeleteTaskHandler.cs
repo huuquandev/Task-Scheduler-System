@@ -6,14 +6,17 @@ using System.Threading.Tasks;
 using MediatR;
 using TaskScheduler.Application.Interfaces;
 
+
 namespace TaskScheduler.Application.Tasks.Commands.DeleteTask
 {
     public class DeleteTaskHandler : IRequestHandler<DeleteTaskCommand, Guid>
     {
         private readonly ITaskRepository _repo;
-        public DeleteTaskHandler(ITaskRepository repo)
+        private readonly ISchedulerService _scheduler;
+        public DeleteTaskHandler(ITaskRepository repo, ISchedulerService scheduler)
         {
             _repo = repo;
+            _scheduler = scheduler;
         }
         public async Task<Guid> Handle(DeleteTaskCommand request, CancellationToken cancellationToken)
         {
@@ -26,6 +29,9 @@ namespace TaskScheduler.Application.Tasks.Commands.DeleteTask
                 
             task.SoftDelete();
             await _repo.UpdateAsync(task);
+
+            // Cancel the task in the scheduler if it's scheduled
+            await _scheduler.UnscheduleTaskAsync(task.Id);
 
             return task.Id;
         }

@@ -12,11 +12,12 @@ namespace TaskScheduler.Application.Tasks.Commands.TriggerTask
     {
         private readonly ITaskRepository _repo;
         private readonly ITaskExecutionLogRepository _logrepo;
-
-        public TriggerTaskHandler(ITaskRepository repo, ITaskExecutionLogRepository logrepo)
+        private readonly ISchedulerService _scheduler;
+        public TriggerTaskHandler(ITaskRepository repo, ITaskExecutionLogRepository logrepo, ISchedulerService scheduler)
         {
             _repo = repo;
             _logrepo = logrepo;
+            _scheduler = scheduler;
         }
         public async Task<Guid> Handle(TriggerTaskCommand request, CancellationToken cancellationToken)
         {
@@ -28,32 +29,10 @@ namespace TaskScheduler.Application.Tasks.Commands.TriggerTask
             if(task.IsDeleted)
                 throw new InvalidOperationException("Task deleted");
 
-            // Task start
-            task.MarkAsRunning();
-            var log = new TaskExecutionLog(task.Id);
-            await _logrepo.AddAsync(log);
-
-            try
-            {
-                // Execute task
-                Console.WriteLine(task.Command);
-
-                // SUCCESS
-                task.MarkAsCompleted();
-
-                log.MarkAsSuccess();
-            }
-            catch (Exception ex)
-            {
-                // FAILED
-                task.MarkAsFailed(ex.Message);
-
-                log.MarkAsFailed(ex.Message);
-            }
-
             await _repo.UpdateAsync(task);
+            // execution
+            await _scheduler.ScheduleTaskAsync(task);
 
-            await _logrepo.UpdateAsync(log);
             return task.Id;
         }
     }

@@ -20,5 +20,16 @@ namespace TaskScheduler.Application.Common.Models
         public bool HasNextPage =>Page < TotalPages;
 
         public bool HasPreviousPage => Page > 1;
+        public PagedResult()
+        {
+            
+        }
+         public PagedResult(List<T> items, int totalCount, int pageNumber, int pageSize)
+        {
+            Items = items;
+            TotalCount = totalCount;
+            Page = pageNumber;
+            PageSize = pageSize;
+        }
     }
 }

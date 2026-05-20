@@ -68,7 +68,7 @@ Giai đoạn 3 — Scheduler Engine
   builder.Services.AddScoped<ISchedulerService, HangfireSchedulerService>();
 
   // Thêm vào app pipeline
-  app.UseHangfireDashboard("/hangfire"); // dashboard để xem jobs
+  app.UseHangfireDashboard("    "); // dashboard để xem jobs
 
   ---
   Bước 3.6 — Fix vấn đề còn tồn đọng từ giai đoạn trước
