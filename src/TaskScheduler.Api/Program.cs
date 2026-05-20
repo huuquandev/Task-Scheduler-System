@@ -43,18 +43,33 @@ builder.Services.AddScoped<ITaskExecutionLogRepository, TaskExecutionLogReposito
 builder.Services.AddValidatorsFromAssemblyContaining<CreateTaskCommandValidator>();
 builder.Services.AddTransient(typeof(IPipelineBehavior<,>),typeof(ValidationBehavior<,>));
 builder.Services.AddAutoMapper(typeof(TaskMappingProfile).Assembly);
+builder.Services.AddScoped<TaskExecutionService>();
 
 // Hangfire
-builder.Services.AddHangfire(config =>config.UsePostgreSqlStorage(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddHangfire(config =>
+{
+    config.UsePostgreSqlStorage(options =>
+    {
+        options.UseNpgsqlConnection(builder.Configuration.GetConnectionString("DefaultConnection"));
+    });
+});
 builder.Services.AddHangfireServer();
 builder.Services.AddScoped<ISchedulerService, HangfireSchedulerService>();
 
 var app = builder.Build();
-app.UseHangfireDashboard("/hangfire"); 
+
+app.UseHttpsRedirection();
+
+app.UseRouting();
+
 app.UseSwagger();
 app.UseSwaggerUI();
-app.UseHttpsRedirection();
+
 app.UseAuthorization();
+
+app.UseHangfireDashboard("/hangfire");
+
 app.MapControllers();
+
 app.Run();
 

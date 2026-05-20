@@ -4,18 +4,19 @@ using System.Linq;
 using System.Threading.Tasks;
 using TaskScheduler.Application.Interfaces;
 using TaskScheduler.Domain.Entities;
-
+using TaskScheduler.Infrastructure.Persistence;
 namespace TaskScheduler.Infrastructure.Scheduling
 {
     public class TaskExecutionService
     {
         private readonly ITaskRepository _repo;
         private readonly ITaskExecutionLogRepository _logrepo;
-
-        public TaskExecutionService(ITaskRepository repo, ITaskExecutionLogRepository logrepo)
+        private readonly ApplicationDbContext _context;  
+        public TaskExecutionService(ITaskRepository repo, ITaskExecutionLogRepository logrepo, ApplicationDbContext context)
         {
             _repo = repo;
             _logrepo = logrepo;
+            _context = context;
         }
 
         public async Task ExecuteTask(Guid taskId)
@@ -51,6 +52,7 @@ namespace TaskScheduler.Infrastructure.Scheduling
             }
             await _repo.UpdateAsync(task);
             await _logrepo.UpdateAsync(log);
+            await _context.SaveChangesAsync();
         }
 
         private Task ExecuteCommand(ScheduledTask task)
