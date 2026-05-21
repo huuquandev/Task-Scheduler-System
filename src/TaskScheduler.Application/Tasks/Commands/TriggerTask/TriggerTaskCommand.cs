@@ -6,5 +6,5 @@ using MediatR;
 
 namespace TaskScheduler.Application.Tasks.Commands.TriggerTask
 {
-    public record TriggerTaskCommand(Guid Id) : IRequest<Guid>;
+    public record TriggerTaskCommand(Guid Id) : IRequest<Unit>;
 }

@@ -8,7 +8,7 @@ using TaskScheduler.Application.Interfaces;
 
 namespace TaskScheduler.Application.Tasks.Commands.ResumeTask
 {
-    public class ResumeTaskHandler : IRequestHandler<ResumeTaskCommand, Guid>
+    public class ResumeTaskHandler : IRequestHandler<ResumeTaskCommand, Unit>
     {
         private readonly ITaskRepository _repo;
         private readonly ISchedulerService _scheduler;
@@ -18,7 +18,7 @@ namespace TaskScheduler.Application.Tasks.Commands.ResumeTask
             _scheduler = scheduler;
         }
         
-        public async Task<Guid> Handle(ResumeTaskCommand request, CancellationToken cancellationToken)
+        public async Task<Unit> Handle(ResumeTaskCommand request, CancellationToken cancellationToken)
         {
             var task = await _repo.GetByIdAsync(request.Id);
 
@@ -34,7 +34,7 @@ namespace TaskScheduler.Application.Tasks.Commands.ResumeTask
             await _repo.UpdateAsync(task);
             // execution
             await _scheduler.ScheduleTaskAsync(task);
-            return task.Id;
+            return Unit.Value;
         }
     }
 }

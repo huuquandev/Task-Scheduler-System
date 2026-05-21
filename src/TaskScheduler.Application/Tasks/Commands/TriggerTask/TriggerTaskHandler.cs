@@ -9,7 +9,7 @@ using TaskScheduler.Domain.Enums;
 
 namespace TaskScheduler.Application.Tasks.Commands.TriggerTask
 {
-    public class TriggerTaskHandler : IRequestHandler<TriggerTaskCommand, Guid>
+    public class TriggerTaskHandler : IRequestHandler<TriggerTaskCommand, Unit>
     {
         private readonly ITaskRepository _repo;
         private readonly ITaskExecutionService _executionService;
@@ -18,7 +18,7 @@ namespace TaskScheduler.Application.Tasks.Commands.TriggerTask
             _repo = repo;
             _executionService = executionService;
         }
-        public async Task<Guid> Handle(TriggerTaskCommand request, CancellationToken cancellationToken)
+        public async Task<Unit> Handle(TriggerTaskCommand request, CancellationToken cancellationToken)
         {
             var task = await _repo.GetByIdAsync(request.Id);
 
@@ -36,7 +36,7 @@ namespace TaskScheduler.Application.Tasks.Commands.TriggerTask
             // Execute immediately
             await _executionService.TriggerNow(task.Id);
 
-            return task.Id;
+            return Unit.Value;
         }
     }
 }

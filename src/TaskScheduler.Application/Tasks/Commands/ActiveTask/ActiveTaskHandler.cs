@@ -7,7 +7,7 @@ using TaskScheduler.Application.Interfaces;
 
 namespace TaskScheduler.Application.Tasks.Commands.ActiveTask
 {
-    public class ActiveTaskHandler : IRequestHandler<ActiveTaskCommand, Guid>
+    public class ActiveTaskHandler : IRequestHandler<ActiveTaskCommand, Unit>
     {
         private readonly ITaskRepository _repo;
         private readonly ISchedulerService _scheduler;
@@ -17,7 +17,7 @@ namespace TaskScheduler.Application.Tasks.Commands.ActiveTask
             _scheduler = scheduler;
         }
 
-        public async Task<Guid> Handle(ActiveTaskCommand request, CancellationToken cancellationToken)
+        public async Task<Unit> Handle(ActiveTaskCommand request, CancellationToken cancellationToken)
         {
             var task = await _repo.GetByIdAsync(request.Id);
 
@@ -34,7 +34,7 @@ namespace TaskScheduler.Application.Tasks.Commands.ActiveTask
             // execution
             await _scheduler.ScheduleTaskAsync(task);
 
-            return task.Id;
+            return Unit.Value;
         }
     }
 }

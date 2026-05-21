@@ -8,7 +8,7 @@ using TaskScheduler.Domain.Entities;
 using TaskScheduler.Domain.ValueObjects;
 namespace TaskScheduler.Application.Tasks.Commands.UpdateTask
 {
-    public class UpdateTaskHandler : IRequestHandler<UpdateTaskCommand, Guid>
+    public class UpdateTaskHandler : IRequestHandler<UpdateTaskCommand, Unit>
     {
         private readonly ITaskRepository _repo;
         private readonly ISchedulerService _scheduler;
@@ -18,7 +18,7 @@ namespace TaskScheduler.Application.Tasks.Commands.UpdateTask
             _repo = repo;
             _scheduler = scheduler;
         }
-        public async Task<Guid> Handle(UpdateTaskCommand request, CancellationToken cancellationToken)
+        public async Task<Unit> Handle(UpdateTaskCommand request, CancellationToken cancellationToken)
         {
             var task = await _repo.GetByIdAsync(request.Id);
             if (task == null)
@@ -40,7 +40,7 @@ namespace TaskScheduler.Application.Tasks.Commands.UpdateTask
             
             // Reschedule the task in the scheduler
             await _scheduler.RescheduleTaskAsync(task);
-            return task.Id;
+            return Unit.Value;
         }
     }
 }

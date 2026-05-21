@@ -6,12 +6,5 @@ using MediatR;
 
 namespace TaskScheduler.Application.Tasks.Commands.UpdateTask
 {
-    public record UpdateTaskCommand(
-        Guid Id,
-        string? Name = null,
-        string? Description = null,
-        string? CronExpression = null,
-        string? Command = null,
-        int? MaxRetries = null
-    ) : IRequest<Guid>;
+    public record UpdateTaskCommand(Guid Id, string? Name = null, string? Description = null, string? CronExpression = null, string? Command = null, int? MaxRetries = null) : IRequest<Unit>;
 }

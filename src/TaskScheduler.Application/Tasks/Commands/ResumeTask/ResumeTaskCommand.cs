@@ -6,5 +6,5 @@ using MediatR;
 
 namespace TaskScheduler.Application.Tasks.Commands.ResumeTask
 {
-    public record ResumeTaskCommand(Guid Id) : IRequest<Guid>;
+    public record ResumeTaskCommand(Guid Id) : IRequest<Unit>;
 }

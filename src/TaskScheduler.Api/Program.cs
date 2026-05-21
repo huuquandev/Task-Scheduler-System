@@ -56,18 +56,39 @@ builder.Services.AddHangfire(config =>
 builder.Services.AddHangfireServer();
 builder.Services.AddScoped<ISchedulerService, HangfireSchedulerService>();
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy
+            .AllowAnyOrigin()
+            .AllowAnyMethod()
+            .AllowAnyHeader();
+    });
+});
+
 var app = builder.Build();
 
+app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+// Các middleware khác
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
 app.UseHttpsRedirection();
-
+app.UseCors("AllowAll");
 app.UseRouting();
-
-app.UseSwagger();
-app.UseSwaggerUI();
-
 app.UseAuthorization();
-
-app.UseHangfireDashboard("/hangfire");
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = new[]
+    {
+        new HangfireAuthorizationFilter()
+    }
+});
 
 app.MapControllers();
 

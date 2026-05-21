@@ -9,7 +9,7 @@ using TaskScheduler.Application.Interfaces;
 
 namespace TaskScheduler.Application.Tasks.Commands.DeleteTask
 {
-    public class DeleteTaskHandler : IRequestHandler<DeleteTaskCommand, Guid>
+    public class DeleteTaskHandler : IRequestHandler<DeleteTaskCommand, Unit>
     {
         private readonly ITaskRepository _repo;
         private readonly ISchedulerService _scheduler;
@@ -18,7 +18,7 @@ namespace TaskScheduler.Application.Tasks.Commands.DeleteTask
             _repo = repo;
             _scheduler = scheduler;
         }
-        public async Task<Guid> Handle(DeleteTaskCommand request, CancellationToken cancellationToken)
+        public async Task<Unit> Handle(DeleteTaskCommand request, CancellationToken cancellationToken)
         {
             var task = await _repo.GetByIdAsync(request.Id);
             if (task == null)
@@ -33,7 +33,7 @@ namespace TaskScheduler.Application.Tasks.Commands.DeleteTask
             // Cancel the task in the scheduler if it's scheduled
             await _scheduler.UnscheduleTaskAsync(task.Id);
 
-            return task.Id;
+            return Unit.Value;
         }
     }
 }

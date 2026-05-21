@@ -6,5 +6,5 @@ using MediatR;
 
 namespace TaskScheduler.Application.Tasks.Commands.ActiveTask
 {
-    public record ActiveTaskCommand(Guid Id) : IRequest<Guid>;
+    public record ActiveTaskCommand(Guid Id) : IRequest<Unit>;
 }

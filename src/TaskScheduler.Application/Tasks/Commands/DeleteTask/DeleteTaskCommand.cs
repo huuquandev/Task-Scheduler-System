@@ -6,5 +6,5 @@ using MediatR;
 
 namespace TaskScheduler.Application.Tasks.Commands.DeleteTask
 {
-    public record DeleteTaskCommand(Guid Id) : IRequest<Guid>;
+    public record DeleteTaskCommand(Guid Id) : IRequest<Unit>;
 }

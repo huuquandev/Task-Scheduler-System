@@ -6,5 +6,5 @@ using MediatR;
 
 namespace TaskScheduler.Application.Tasks.Commands.PauseTask
 {
-    public record PauseTaskCommand(Guid Id) : IRequest<Guid>;
+    public record PauseTaskCommand(Guid Id) : IRequest<Unit>;
 }

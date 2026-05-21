@@ -10,9 +10,7 @@ namespace TaskScheduler.Api.Controllers
     [ApiController]
     public class BaseApiController : ControllerBase
     {
-        protected IActionResult Success<T>(
-            T data,
-            string message = "Success")
+        protected IActionResult Success<T>(T data, string message = "Success")
         {
             return Ok(new ApiResponse<T>
             {
@@ -22,9 +20,7 @@ namespace TaskScheduler.Api.Controllers
             });
         }
 
-        protected IActionResult Fail(
-            string message,
-            int code = 1)
+        protected IActionResult Fail(string message, int code = 1)
         {
             return BadRequest(new ApiResponse<object>
             {

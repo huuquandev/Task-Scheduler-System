@@ -8,7 +8,7 @@ using TaskScheduler.Application.Interfaces;
 
 namespace TaskScheduler.Application.Tasks.Commands.PauseTask
 {
-    public class PauseTaskHandler : IRequestHandler<PauseTaskCommand, Guid>
+    public class PauseTaskHandler : IRequestHandler<PauseTaskCommand, Unit>
     {
         private readonly ITaskRepository _repo;
         private readonly ISchedulerService _scheduler;
@@ -17,7 +17,7 @@ namespace TaskScheduler.Application.Tasks.Commands.PauseTask
             _repo = repo;
             _scheduler = scheduler;
         }
-        public async Task<Guid> Handle(PauseTaskCommand request, CancellationToken cancellationToken)
+        public async Task<Unit> Handle(PauseTaskCommand request, CancellationToken cancellationToken)
         {
             var task = await _repo.GetByIdAsync(request.Id);
 
@@ -33,7 +33,7 @@ namespace TaskScheduler.Application.Tasks.Commands.PauseTask
             // Cancel the task in the scheduler if it's scheduled
             await _scheduler.UnscheduleTaskAsync(task.Id);
 
-            return task.Id;
+            return Unit.Value;
             
         }
     }

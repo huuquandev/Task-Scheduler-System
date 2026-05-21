@@ -16,7 +16,7 @@ namespace TaskScheduler.Infrastructure.Persistence
 
         public DbSet<ScheduledTask> ScheduledTasks => Set<ScheduledTask>();
         public DbSet<TaskExecutionLog> TaskExecutionLogs => Set<TaskExecutionLog>();
-
+        public DbSet<User> Users => Set<User>();
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
