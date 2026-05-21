@@ -9,13 +9,13 @@
   <ItemGroup>
     <ProjectReference Include="..\TaskScheduler.Application\TaskScheduler.Application.csproj" />
     <ProjectReference Include="..\TaskScheduler.Infrastructure\TaskScheduler.Infrastructure.csproj" />
-    <ProjectReference Include="..\TaskScheduler.Infrastructure\TaskScheduler.Domain.csproj" />
+    <ProjectReference Include="..\TaskScheduler.Domain\TaskScheduler.Domain.csproj" />
 
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.8" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.8">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.8">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>

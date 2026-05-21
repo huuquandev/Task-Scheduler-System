@@ -87,3 +87,346 @@
   2. Kiểm tra và bổ sung endpoints còn thiếu trong Controllers
   3. JWT Authentication
   4. Swagger + Hangfire Dashboard auth
+
+
+  ---
+  Bước 4.2 — Setup JWT Authentication trong Program.cs
+
+  appsettings.json đã có đủ Jwt section. TokenService đã implement. Chỉ cần thêm vào Program.cs.
+
+  Thêm package (chạy trong terminal):
+  dotnet add src/TaskScheduler.Api package Microsoft.AspNetCore.Authentication.JwtBearer
+
+  Trong Program.cs, thêm 3 thứ:
+
+  1. Using ở đầu file:
+  using Microsoft.AspNetCore.Authentication.JwtBearer;
+  using Microsoft.IdentityModel.Tokens;
+  using System.Text;
+  using TaskScheduler.Infrastructure.Services;
+
+  2. Đăng ký services — thêm vào sau block // DI hiện tại:
+  // Auth
+  builder.Services.AddScoped<IUserRepository, UserRepository>();
+  builder.Services.AddScoped<ITokenService, TokenService>();
+
+  builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+      .AddJwtBearer(options =>
+      {
+          options.TokenValidationParameters = new TokenValidationParameters
+          {
+              ValidateIssuer = true,
+              ValidateAudience = true,
+              ValidateLifetime = true,
+              ValidateIssuerSigningKey = true,
+              ValidIssuer = builder.Configuration["Jwt:Issuer"],
+              ValidAudience = builder.Configuration["Jwt:Audience"],
+              IssuerSigningKey = new SymmetricSecurityKey(
+                  Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Secret"]!))
+          };
+      });
+
+  3. Trong pipeline — thêm UseAuthentication trước UseAuthorization (thứ tự này quan trọng):
+  app.UseAuthentication();   // thêm dòng này
+  app.UseAuthorization();
+
+  ▎ Lưu ý quan trọng: Hiện tại Program.cs không đăng ký IUserRepository và ITokenService. Nếu thiếu thì AuthController sẽ báo lỗi DI lúc runtime.
+
+  ---
+  Bước 4.3 — Tạo Auth Commands/Handlers trong Application layer
+
+  Mục tiêu: AuthController không chứa business logic — tất cả đi qua MediatR.
+
+  Tạo 2 file command + handler:
+
+  File 1: src/TaskScheduler.Application/Auth/Commands/Login/LoginCommand.cs
+
+  using MediatR;
+  using TaskScheduler.Application.Auth.DTOs;
+
+  namespace TaskScheduler.Application.Auth.Commands.Login
+  {
+      public record LoginCommand(string Username, string Password) : IRequest<AuthResponse>;
+  }
+
+  File 2: src/TaskScheduler.Application/Auth/Commands/Login/LoginHandler.cs
+
+  using MediatR;
+  using TaskScheduler.Application.Auth.DTOs;
+  using TaskScheduler.Application.Interfaces;
+
+  namespace TaskScheduler.Application.Auth.Commands.Login
+  {
+      public class LoginHandler : IRequestHandler<LoginCommand, AuthResponse>
+      {
+          private readonly IUserRepository _userRepository;
+          private readonly ITokenService _tokenService;
+
+          public LoginHandler(IUserRepository userRepository, ITokenService tokenService)
+          {
+              _userRepository = userRepository;
+              _tokenService = tokenService;
+          }
+
+          public async Task<AuthResponse> Handle(LoginCommand request, CancellationToken cancellationToken)
+          {
+              var user = await _userRepository.GetByUsernameAsync(request.Username);
+              if (user == null || !_tokenService.VerifyPassword(request.Password, user.PasswordHash))
+                  throw new UnauthorizedAccessException("Invalid username or password.");
+
+              if (!user.IsActive)
+                  throw new UnauthorizedAccessException("Account is disabled.");
+
+              var token = _tokenService.GenerateJwtToken(user);
+
+              return new AuthResponse
+              {
+                  Token = token,
+                  Username = user.Username,
+                  Email = user.Email
+              };
+          }
+      }
+  }
+
+  File 3: src/TaskScheduler.Application/Auth/Commands/Register/RegisterCommand.cs
+
+  using MediatR;
+
+  namespace TaskScheduler.Application.Auth.Commands.Register
+  {
+      public record RegisterCommand(string Username, string Email, string Password) : IRequest<Guid>;
+  }
+
+  File 4: src/TaskScheduler.Application/Auth/Commands/Register/RegisterHandler.cs
+
+  using MediatR;
+  using TaskScheduler.Application.Interfaces;
+  using TaskScheduler.Domain.Entities;
+
+  namespace TaskScheduler.Application.Auth.Commands.Register
+  {
+      public class RegisterHandler : IRequestHandler<RegisterCommand, Guid>
+      {
+          private readonly IUserRepository _userRepository;
+          private readonly ITokenService _tokenService;
+
+          public RegisterHandler(IUserRepository userRepository, ITokenService tokenService)
+          {
+              _userRepository = userRepository;
+              _tokenService = tokenService;
+          }
+
+          public async Task<Guid> Handle(RegisterCommand request, CancellationToken cancellationToken)
+          {
+              if (await _userRepository.UsernameExistsAsync(request.Username))
+                  throw new InvalidOperationException("Username already exists.");
+
+              if (await _userRepository.EmailExistsAsync(request.Email))
+                  throw new InvalidOperationException("Email already exists.");
+
+              var user = new User
+              {
+                  Id = Guid.NewGuid(),
+                  Username = request.Username,
+                  Email = request.Email,
+                  PasswordHash = _tokenService.HashPassword(request.Password),
+                  CreatedAt = DateTime.UtcNow,
+                  IsActive = true
+              };
+
+              await _userRepository.AddAsync(user);
+
+              // UserRepository.AddAsync không gọi SaveChanges — cần inject DbContext hoặc Unit of Work
+              // Xem note bên dưới
+              return user.Id;
+          }
+      }
+  }
+
+  ▎ Note về SaveChanges: Nhìn vào UserRepository.AddAsync — nó chỉ gọi _context.Users.AddAsync(user) mà không có SaveChangesAsync(). Có 2 cách xử lý:
+  ▎ - Thêm await _context.SaveChangesAsync() vào cuối UserRepository.AddAsync() — đơn giản nhất
+  ▎ - Hoặc inject ApplicationDbContext trực tiếp vào handler và gọi SaveChangesAsync() tại đó
+  ▎
+  ▎ Chọn cách 1: mở UserRepository.cs, sửa AddAsync:
+  ▎ public async Task AddAsync(User user)
+  ▎ {
+  ▎     await _context.Users.AddAsync(user);
+  ▎     await _context.SaveChangesAsync();
+  ▎ }
+
+  ---
+  Bước 4.4 — Hoàn thiện AuthController
+
+  Mở src/TaskScheduler.Api/Controllers/AuthController.cs và thay toàn bộ nội dung:
+
+  using MediatR;
+  using Microsoft.AspNetCore.Mvc;
+  using Swashbuckle.AspNetCore.Annotations;
+  using TaskScheduler.Application.Auth.Commands.Login;
+  using TaskScheduler.Application.Auth.Commands.Register;
+
+  namespace TaskScheduler.Api.Controllers
+  {
+      [ApiController]
+      [Route("api/v1/auth")]
+      public class AuthController : BaseApiController
+      {
+          private readonly IMediator _mediator;
+
+          public AuthController(IMediator mediator)
+          {
+              _mediator = mediator;
+          }
+
+          [HttpPost("login")]
+          [SwaggerOperation(Summary = "Login and receive JWT token.")]
+          [ProducesResponseType(StatusCodes.Status200OK)]
+          [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+          public async Task<IActionResult> Login(LoginCommand cmd)
+          {
+              var result = await _mediator.Send(cmd);
+              return Success(result, "Login successful.");
+          }
+
+          [HttpPost("register")]
+          [SwaggerOperation(Summary = "Register a new user account.")]
+          [ProducesResponseType(StatusCodes.Status200OK)]
+          [ProducesResponseType(StatusCodes.Status400BadRequest)]
+          public async Task<IActionResult> Register(RegisterCommand cmd)
+          {
+              var result = await _mediator.Send(cmd);
+              return Success(result, "Registration successful.");
+          }
+      }
+  }
+
+  ---
+  Bước 4.5 — Thêm [Authorize] vào Controllers
+
+  Sau khi JWT setup xong, bảo vệ các endpoints. Thêm [Authorize] vào:
+
+  TasksController.cs — thêm ở class level:
+  using Microsoft.AspNetCore.Authorization;
+
+  [ApiController]
+  [Route("api/v1/tasks")]
+  [Authorize]   // thêm dòng này
+  public class TasksController : BaseApiController
+
+  ExecutionLogsController.cs:
+  [ApiController]
+  [Route("api/v1/tasks")]
+  [Authorize]
+  public class ExecutionLogsController : BaseApiController
+
+  DashboardController.cs:
+  [ApiController]
+  [Route("api/v1/dashboard")]
+  [Authorize]
+  public class DashboardController : BaseApiController
+
+  ▎ AuthController không có [Authorize] vì đây là endpoint public để lấy token.
+
+  ---
+  Bước 4.6 — Xử lý UnauthorizedAccessException trong Middleware
+
+  ExceptionHandlingMiddleware hiện chưa map UnauthorizedAccessException. Mở ExceptionHandlingMiddleware.cs, thêm case vào switch expression:
+
+  var response = exception switch
+  {
+      UnauthorizedAccessException => ApiResponse<object>.FailureResponse(
+          exception.Message,
+          StatusCodes.Status401Unauthorized),
+
+      ArgumentException => ApiResponse<object>.FailureResponse(
+          exception.Message,
+          StatusCodes.Status400BadRequest),
+
+      InvalidOperationException => ApiResponse<object>.FailureResponse(
+          exception.Message,
+          StatusCodes.Status400BadRequest),
+
+      KeyNotFoundException => ApiResponse<object>.FailureResponse(
+          exception.Message,
+          StatusCodes.Status404NotFound),
+
+      _ => ApiResponse<object>.FailureResponse(
+          "An internal server error occurred",
+          StatusCodes.Status500InternalServerError)
+  };
+
+  ▎ Cũng cần fix ExceptionHandlingMiddleware.cs line 63: return context.Response.WriteAsJsonAsync(response) — method này trả về Task nhưng đang bị return trong method void. Sửa thành await:
+  ▎ await context.Response.WriteAsJsonAsync(response);
+
+  ---
+  Bước 4.7 — Hoàn thiện Swagger với JWT Bearer
+
+  Mở Program.cs, thay block AddSwaggerGen hiện tại:
+
+  using Microsoft.OpenApi.Models;
+
+  builder.Services.AddSwaggerGen(c =>
+  {
+      c.EnableAnnotations();
+
+      c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+      {
+          Name = "Authorization",
+          Type = SecuritySchemeType.Http,
+          Scheme = "Bearer",
+          BearerFormat = "JWT",
+          In = ParameterLocation.Header,
+          Description = "Nhập JWT token. Ví dụ: Bearer {token}"
+      });
+
+      c.AddSecurityRequirement(new OpenApiSecurityRequirement
+      {
+          {
+              new OpenApiSecurityScheme
+              {
+                  Reference = new OpenApiReference
+                  {
+                      Type = ReferenceType.SecurityScheme,
+                      Id = "Bearer"
+                  }
+              },
+              Array.Empty<string>()
+          }
+      });
+  });
+
+  Sau bước này Swagger UI sẽ có nút Authorize ở góc trên phải. Bạn login lấy token, paste vào đó, rồi test tất cả endpoint có [Authorize] ngay trên browser.
+
+  ---
+  Bước 4.8 — Tạo Migration cho User table
+
+  ApplicationDbContext đã có DbSet<User> nhưng migration hiện tại (InitialCreate) có thể chưa bao gồm bảng Users. Chạy:
+
+  dotnet ef migrations add AddUserTable --project src/TaskScheduler.Infrastructure --startup-project src/TaskScheduler.Api
+  dotnet ef database update --project src/TaskScheduler.Infrastructure --startup-project src/TaskScheduler.Api
+
+  ▎ Nếu migration báo "No changes detected" thì bảng Users đã có trong InitialCreate rồi — bỏ qua bước này.
+
+  ---
+  Thứ tự thực hiện tóm tắt
+
+  ┌──────┬─────────────────────────────────────────────────────────────────────┬────────────────────────────────┐
+  │ Bước │                              Việc làm                               │              File              │
+  ├──────┼─────────────────────────────────────────────────────────────────────┼────────────────────────────────┤
+  │ 4.2  │ Thêm package JwtBearer, setup AddAuthentication + UseAuthentication │ Program.cs                     │
+  ├──────┼─────────────────────────────────────────────────────────────────────┼────────────────────────────────┤
+  │ 4.3  │ Tạo LoginCommand/Handler, RegisterCommand/Handler                   │ Application/Auth/Commands/     │
+  ├──────┼─────────────────────────────────────────────────────────────────────┼────────────────────────────────┤
+  │ 4.4  │ Viết lại AuthController                                             │ AuthController.cs              │
+  ├──────┼─────────────────────────────────────────────────────────────────────┼────────────────────────────────┤
+  │ 4.5  │ Thêm [Authorize] vào 3 controller                                   │ Tasks/Dashboard/ExecutionLogs  │
+  ├──────┼─────────────────────────────────────────────────────────────────────┼────────────────────────────────┤
+  │ 4.6  │ Thêm UnauthorizedAccessException case + fix await                   │ ExceptionHandlingMiddleware.cs │
+  ├──────┼─────────────────────────────────────────────────────────────────────┼────────────────────────────────┤
+  │ 4.7  │ Thêm JWT Bearer vào Swagger                                         │ Program.cs                     │
+  ├──────┼─────────────────────────────────────────────────────────────────────┼────────────────────────────────┤
+  │ 4.8  │ Tạo migration nếu chưa có bảng Users                                │ Terminal                       │
+  └──────┴─────────────────────────────────────────────────────────────────────┴────────────────────────────────┘
+
+  Sau khi xong hết, dotnet build rồi dotnet run — test flow: Register → Login lấy token → Authorize trong Swagger → gọi /api/v1/tasks.

@@ -8,8 +8,12 @@ using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using TaskScheduler.Application.Tasks.Queries.GetTaskExecutionLogs;
 using TaskScheduler.Application.Tasks.Queries.GetDetailsTaskExecutionLog;
+using Microsoft.AspNetCore.Authorization;
 namespace TaskScheduler.Api.Controllers
 {
+    [ApiController]
+    [Route("api/v1/tasks")]
+    [Authorize]
     public class ExecutionLogsController : BaseApiController
     {
         private readonly IMediator _mediator;

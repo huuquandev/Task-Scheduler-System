@@ -16,10 +16,12 @@ using TaskScheduler.Application.Tasks.Commands.ResumeTask;
 using TaskScheduler.Application.Tasks.Commands.TriggerTask;
 using TaskScheduler.Application.Tasks.Commands.ActiveTask;
 using TaskScheduler.Application.Tasks.Queries.GetTasksPaged;
+using Microsoft.AspNetCore.Authorization;
 namespace TaskScheduler.Api.Controllers
 {
     [ApiController]
     [Route("api/v1/tasks")]
+    [Authorize]
     public class TasksController : BaseApiController
     {
         private readonly IMediator _mediator;
@@ -69,59 +71,54 @@ namespace TaskScheduler.Api.Controllers
         [HttpDelete("{id}")]
         [SwaggerOperation(Summary = "Delete scheduled task.")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> Delete(Guid id, DeleteTaskCommand cmd)
+        public async Task<IActionResult> Delete(Guid id)
         {
-            cmd = cmd with { Id = id };
-            var result = await _mediator.Send(cmd);
+            var result = await _mediator.Send(new DeleteTaskCommand(id));
             return Success(result,"Task Deleted successfully");        
         }
 
         [HttpPost("{id}/pause")]
         [SwaggerOperation(Summary = "Pause scheduled task.")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> Pause(Guid id, PauseTaskCommand cmd)
+        public async Task<IActionResult> Pause(Guid id)
         {
-            cmd = cmd with { Id = id };
-            var result = await _mediator.Send(cmd);
+            var result = await _mediator.Send(new PauseTaskCommand(id));
             return Success(result,"Task Paused successfully");        
         }
 
         [HttpPost("{id}/resume")]
         [SwaggerOperation(Summary = "Resume scheduled task.")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> Resume(Guid id, ResumeTaskCommand cmd)
+        public async Task<IActionResult> Resume(Guid id)
         {
-            cmd = cmd with { Id = id };
-            var result = await _mediator.Send(cmd);
-            return Success(result,"Task has continue successfully");        
+            var result = await _mediator.Send(new ResumeTaskCommand(id));
+            return Success(result,"Task has resumed successfully");        
         }
 
         [HttpPost("{id}/trigger")]
         [SwaggerOperation(Summary = "Trigger scheduled task.")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> Trigger(Guid id, TriggerTaskCommand cmd)
+        public async Task<IActionResult> Trigger(Guid id)
         {
-            cmd = cmd with { Id = id };
-            var result = await _mediator.Send(cmd);
-            return Success(result,"complete Task successfully.");        
+            var result = await _mediator.Send(new TriggerTaskCommand(id));
+            return Success(result,"Task triggered successfully.");        
         }
         
-        [HttpGet("{page}/{pageSize}")]
+        [HttpGet("paged")]
         [SwaggerOperation(Summary = "Retrieve paged scheduled tasks.")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> GetPaged(int page, int pageSize)
+        public async Task<IActionResult> GetPaged([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
             var result = await _mediator.Send(new GetTasksPagedQuery(page, pageSize));
             return Success(result, "Success");
         }
         
-        [HttpGet("{id}/activate")]
+        [HttpPost("{id}/activate")]
         [SwaggerOperation(Summary = "Activate a scheduled task.")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> Activate(Guid id, ActiveTaskCommand cmd)
+        public async Task<IActionResult> Activate(Guid id)
         {
-            cmd = cmd with { Id = id };
-            var result = await _mediator.Send(cmd);
+            var result = await _mediator.Send(new ActiveTaskCommand(id));
             return Success(result,"Task has activated successfully");        
         }
     }

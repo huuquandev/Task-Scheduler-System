@@ -7,9 +7,13 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using TaskScheduler.Application.Tasks.Queries.GetTasksDashBoard;
+using Microsoft.AspNetCore.Authorization;
 
 namespace TaskScheduler.Api.Controllers
 {
+    [ApiController]
+    [Route("api/v1/dashboard")]
+    [Authorize]
     public class DashboardController : BaseApiController
     {
         private readonly IMediator _mediator;
@@ -19,7 +23,7 @@ namespace TaskScheduler.Api.Controllers
             _mediator = mediator;
         }
 
-        [HttpGet("gettaskdashboard")]
+        [HttpGet]
         [SwaggerOperation(Summary = "Retrieves task dashboard information for a scheduled task.")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> GetTaskDashboard()

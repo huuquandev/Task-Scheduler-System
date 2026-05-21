@@ -8,6 +8,7 @@ using System.Text;
 using Microsoft.IdentityModel.Tokens;
 using TaskScheduler.Application.Interfaces;
 using TaskScheduler.Domain.Entities;
+using Microsoft.Extensions.Configuration;
 
 namespace TaskScheduler.Infrastructure.Services;
 

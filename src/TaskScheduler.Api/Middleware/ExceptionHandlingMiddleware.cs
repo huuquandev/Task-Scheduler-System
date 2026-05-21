@@ -60,7 +60,7 @@ namespace TaskScheduler.Api.Middleware
 
             context.Response.StatusCode = response.Code;
 
-            return context.Response.WriteAsJsonAsync(response);
+            await context.Response.WriteAsJsonAsync(response);
         }
     }
 }

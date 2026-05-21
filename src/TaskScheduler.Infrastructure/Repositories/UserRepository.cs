@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using TaskScheduler.Application.Interfaces;
 using TaskScheduler.Domain.Entities;
 using TaskScheduler.Infrastructure.Persistence;
@@ -39,6 +40,7 @@ namespace TaskScheduler.Infrastructure.Repositories
         public async Task AddAsync(User user)
         {
             await _context.Users.AddAsync(user);
+            await _context.SaveChangesAsync();
         }
     }
 }
