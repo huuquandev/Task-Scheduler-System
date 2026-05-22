@@ -7,8 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
-using TaskScheduler.Application.Auth.Commands.Login;
-using TaskScheduler.Application.Auth.Commands.Register;
+using TaskScheduler.Application.Auth.Commands.AuthLogin;
+using TaskScheduler.Application.Auth.Commands.AuthRegister;
 
 namespace TaskScheduler.Api.Controllers
 {

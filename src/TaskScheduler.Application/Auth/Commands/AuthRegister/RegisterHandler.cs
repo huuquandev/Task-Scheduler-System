@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using MediatR;
 using TaskScheduler.Application.Interfaces;
 using TaskScheduler.Domain.Entities;
-namespace TaskScheduler.Application.Auth.Commands.Register
+namespace TaskScheduler.Application.Auth.Commands.AuthRegister
 {
      public class RegisterHandler : IRequestHandler<RegisterCommand, Guid>
       {

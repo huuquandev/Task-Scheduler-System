@@ -43,8 +43,7 @@ namespace TaskScheduler.Domain.Entities
         {
             if (Status != TaskExecutionStatus.Running)
             {
-                throw new InvalidOperationException(
-                    "Only running task can be completed.");
+                throw new InvalidOperationException("Only running task can be completed.");
             }
 
             FinishedAt = DateTime.UtcNow;
@@ -58,14 +57,12 @@ namespace TaskScheduler.Domain.Entities
         {
             if (Status != TaskExecutionStatus.Running)
             {
-                throw new InvalidOperationException(
-                    "Only running task can fail.");
+                throw new InvalidOperationException("Only running task can fail.");
             }
 
             if (string.IsNullOrWhiteSpace(errorMessage))
             {
-                throw new ArgumentException(
-                    "Error message is required.");
+                throw new ArgumentException("Error message is required.");
             }
 
             FinishedAt = DateTime.UtcNow;
@@ -92,8 +89,7 @@ namespace TaskScheduler.Domain.Entities
 
         private long CalculateDurationMs()
         {
-            return (long)(DateTime.UtcNow - StartedAt)
-                .TotalMilliseconds;
+            return (long)(DateTime.UtcNow - StartedAt).TotalMilliseconds;
         }
     }
 }

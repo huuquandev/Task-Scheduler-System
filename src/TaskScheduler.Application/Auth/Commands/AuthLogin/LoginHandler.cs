@@ -6,7 +6,7 @@ using MediatR;
 using TaskScheduler.Application.Auth.DTOs;
 using TaskScheduler.Application.Interfaces;
 
-namespace TaskScheduler.Application.Auth.Commands.Login
+namespace TaskScheduler.Application.Auth.Commands.AuthLogin
 {
     public class LoginHandler : IRequestHandler<LoginCommand, AuthResponse>
     {

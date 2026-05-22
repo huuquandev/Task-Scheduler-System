@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
  using MediatR;
 using TaskScheduler.Application.Auth.DTOs;
-namespace TaskScheduler.Application.Auth.Commands.Login
+namespace TaskScheduler.Application.Auth.Commands.AuthLogin
 {
     public record LoginCommand(string Username, string Password) : IRequest<AuthResponse>;
 }
