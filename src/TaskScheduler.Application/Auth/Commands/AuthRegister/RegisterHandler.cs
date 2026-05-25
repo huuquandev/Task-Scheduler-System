@@ -38,8 +38,6 @@ namespace TaskScheduler.Application.Auth.Commands.AuthRegister
 
               await _userRepository.AddAsync(user);
 
-              // UserRepository.AddAsync không gọi SaveChanges — cần inject DbContext hoặc Unit of Work
-              // Xem note bên dưới
               return user.Id;
           }
       }

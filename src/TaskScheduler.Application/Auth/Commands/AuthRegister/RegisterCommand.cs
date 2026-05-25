@@ -6,5 +6,5 @@ using MediatR;
 
 namespace TaskScheduler.Application.Auth.Commands.AuthRegister
 {
-    public record RegisterCommand(string Username, string Email, string Password) : IRequest<Guid>;
+    public record RegisterCommand(string Username, string Email, string Password, string ConfirmPassword) : IRequest<Guid>;
 }

@@ -62,7 +62,7 @@ namespace TaskScheduler.Domain.Entities
 
             if (string.IsNullOrWhiteSpace(errorMessage))
             {
-                throw new ArgumentException("Error message is required.");
+                throw new ArgumentException("Error message cannot be empty.");
             }
 
             FinishedAt = DateTime.UtcNow;
