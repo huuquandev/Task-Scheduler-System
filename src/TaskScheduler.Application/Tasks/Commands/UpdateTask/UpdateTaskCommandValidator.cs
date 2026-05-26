@@ -20,7 +20,7 @@ namespace TaskScheduler.Application.Tasks.Commands.UpdateTask
 
             RuleFor(x => x.CronExpression)
                 .NotEmpty()
-                .When(x => x.Command != null);
+                .When(x => x.CronExpression != null);
 
             RuleFor(x => x.MaxRetries)
                 .InclusiveBetween(0, 10)
