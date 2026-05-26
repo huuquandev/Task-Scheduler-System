@@ -2,6 +2,7 @@ using FluentAssertions;
 using TaskScheduler.Domain.Entities;
 using Xunit;
 using TaskScheduler.Domain.Tests.Builders;
+using TaskScheduler.Domain.Enums;
 
 namespace TaskScheduler.Domain.Tests.Entities
 {
@@ -38,7 +39,7 @@ namespace TaskScheduler.Domain.Tests.Entities
         public void MarkAsSuccess_WhenRunning_ShouldChangeStatusToSuccess()
         {
             // Arrange
-            var log = new TaskExecutionLogBuilder().Build();
+            var log = new ExecutionLogBuilder().Build();
 
             // Act
             log.MarkAsSuccess();
@@ -50,7 +51,7 @@ namespace TaskScheduler.Domain.Tests.Entities
         [Fact]
         public void MarkAsSuccess_ShouldSetFinishedAt()
         {
-            var log = new TaskExecutionLogBuilder().Build();
+            var log = new ExecutionLogBuilder().Build();
 
             log.MarkAsSuccess();
 
@@ -60,7 +61,7 @@ namespace TaskScheduler.Domain.Tests.Entities
         [Fact]
         public void MarkAsSuccess_ShouldCalculateDuration()
         {
-            var log = new TaskExecutionLogBuilder().Build();
+            var log = new ExecutionLogBuilder().Build();
 
             Thread.Sleep(50);
 
@@ -73,7 +74,7 @@ namespace TaskScheduler.Domain.Tests.Entities
         public void MarkAsSuccess_WhenNotRunning_ShouldThrowException()
         {
             // Arrange
-            var log = new TaskExecutionLogBuilder().Build();
+            var log = new ExecutionLogBuilder().Build();
 
             log.MarkAsSuccess();
 
@@ -88,7 +89,7 @@ namespace TaskScheduler.Domain.Tests.Entities
         [Fact]
         public void MarkAsFailed_WhenRunning_ShouldChangeStatusToFailed()
         {
-            var log = new TaskExecutionLogBuilder().Build();
+            var log = new ExecutionLogBuilder().Build();
 
             log.MarkAsFailed("Database Error");
 
@@ -98,7 +99,7 @@ namespace TaskScheduler.Domain.Tests.Entities
         [Fact]
         public void MarkAsFailed_ShouldStoreErrorMessage()
         {
-            var log = new TaskExecutionLogBuilder().Build();
+            var log = new ExecutionLogBuilder().Build();
 
             log.MarkAsFailed("Database Error");
 
@@ -108,7 +109,7 @@ namespace TaskScheduler.Domain.Tests.Entities
         [Fact]
         public void MarkAsFailed_ShouldSetFinishedAt()
         {
-            var log = new TaskExecutionLogBuilder().Build();
+            var log = new ExecutionLogBuilder().Build();
 
             log.MarkAsFailed("Error");
 
@@ -118,7 +119,7 @@ namespace TaskScheduler.Domain.Tests.Entities
         [Fact]
         public void MarkAsFailed_ShouldCalculateDuration()
         {
-            var log = new TaskExecutionLogBuilder().Build();
+            var log = new ExecutionLogBuilder().Build();
 
             Thread.Sleep(50);
 
@@ -130,7 +131,7 @@ namespace TaskScheduler.Domain.Tests.Entities
         [Fact]
         public void MarkAsFailed_WithEmptyMessage_ShouldThrowException()
         {
-            var log = new TaskExecutionLogBuilder().Build();
+            var log = new ExecutionLogBuilder().Build();
 
             Action action = () => log.MarkAsFailed("");
 
@@ -140,7 +141,7 @@ namespace TaskScheduler.Domain.Tests.Entities
         [Fact]
         public void MarkAsFailed_WithNullMessage_ShouldThrowException()
         {
-            var log = new TaskExecutionLogBuilder().Build();
+            var log = new ExecutionLogBuilder().Build();
 
             Action action = () => log.MarkAsFailed(null!);
 
@@ -150,7 +151,7 @@ namespace TaskScheduler.Domain.Tests.Entities
         [Fact]
         public void MarkAsFailed_WhenNotRunning_ShouldThrowException()
         {
-            var log = new TaskExecutionLogBuilder().Build();
+            var log = new ExecutionLogBuilder().Build();
 
             log.MarkAsSuccess();
 
@@ -163,7 +164,7 @@ namespace TaskScheduler.Domain.Tests.Entities
         [Fact]
         public void Retry_ShouldResetFinishedAt()
         {
-            var log = new TaskExecutionLogBuilder().Build();
+            var log = new ExecutionLogBuilder().Build();
 
             log.MarkAsFailed("Error");
 
@@ -175,7 +176,7 @@ namespace TaskScheduler.Domain.Tests.Entities
         [Fact]
         public void Retry_ShouldClearErrorMessage()
         {
-            var log = new TaskExecutionLogBuilder().Build();
+            var log = new ExecutionLogBuilder().Build();
 
             log.MarkAsFailed("Database Error");
 
@@ -187,7 +188,7 @@ namespace TaskScheduler.Domain.Tests.Entities
         [Fact]
         public void Retry_ShouldClearDuration()
         {
-            var log = new TaskExecutionLogBuilder().Build();
+            var log = new ExecutionLogBuilder().Build();
 
             log.MarkAsFailed("Error");
 
@@ -199,7 +200,7 @@ namespace TaskScheduler.Domain.Tests.Entities
         [Fact]
         public void Retry_ShouldChangeStatusToRunning()
         {
-            var log = new TaskExecutionLogBuilder().Build();
+            var log = new ExecutionLogBuilder().Build();
 
             log.MarkAsFailed("Error");
 
@@ -211,7 +212,7 @@ namespace TaskScheduler.Domain.Tests.Entities
         [Fact]
         public void Retry_ShouldUpdateStartedAt()
         {
-            var log = new TaskExecutionLogBuilder().Build();
+            var log = new ExecutionLogBuilder().Build();
 
             var originalStartedAt = log.StartedAt;
 

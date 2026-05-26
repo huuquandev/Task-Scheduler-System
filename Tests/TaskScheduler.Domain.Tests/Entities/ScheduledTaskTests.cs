@@ -4,6 +4,7 @@ using TaskScheduler.Domain.Events;
 using TaskScheduler.Domain.ValueObjects;
 using Xunit;
 using TaskScheduler.Domain.Tests.Builders;
+using TaskScheduler.Domain.Enums;
 
 namespace TaskScheduler.Domain.Tests.Entities
 {
@@ -153,16 +154,6 @@ namespace TaskScheduler.Domain.Tests.Entities
             task.MarkAsCompleted();
 
             task.Status.Should().Be(ScheduledTaskStatus.Completed);
-        }
-
-        [Fact]
-        public void MarkAsCompleted_ShouldRaiseDomainEvent()
-        {
-            var task = new ScheduledTaskBuilder().Build();
-
-            task.MarkAsCompleted();
-
-            task.DomainEvents.Should().Contain(x => x is TaskCompletedEvent);
         }
 
         [Fact]

@@ -114,5 +114,5 @@ swagger.json
 # =========================
 tmp/
 temp/
-
+.claude/
 start-vscode-net10.ps1

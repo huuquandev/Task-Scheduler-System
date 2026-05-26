@@ -16,7 +16,7 @@ namespace TaskScheduler.Domain.Entities
         public DateTime? UpdatedAt { get; set; }
         public bool IsActive { get; set; } = true;
 
-        private User()
+        public User()
         {
         }
 

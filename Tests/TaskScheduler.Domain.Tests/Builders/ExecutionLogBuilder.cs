@@ -9,7 +9,7 @@ namespace TaskScheduler.Domain.Tests.Builders
     public class ExecutionLogBuilder
     {
          private Guid _taskId = Guid.NewGuid();
-        public TaskExecutionLogBuilder WithTaskId(Guid taskId)
+        public ExecutionLogBuilder WithTaskId(Guid taskId)
         {
             _taskId = taskId;
             return this;

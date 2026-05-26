@@ -119,8 +119,11 @@ namespace TaskScheduler.Domain.Tests.Entities
             // Arrange
             var user = new UserBuilder().Build();
             
-            // Act & Assert
-            user.ChangePassword.Should().Throw<ArgumentException>().WithMessage("Password cannot be empty.");
+            // Act 
+            Action action = () => user.ChangePassword(passwordHash);
+            
+            //Assert
+            action.Should().Throw<ArgumentException>().WithMessage("Password cannot be empty.");
         }
 
         [Fact]
@@ -130,7 +133,7 @@ namespace TaskScheduler.Domain.Tests.Entities
             var user = new UserBuilder().Build();
 
             user.Deactivate();
-            var oldUpdatedAt = user.UpdatedAt;
+            var oldUpdatedAt = user.UpdatedAt!.Value;
 
             Thread.Sleep(10);
 
@@ -138,6 +141,7 @@ namespace TaskScheduler.Domain.Tests.Entities
             user.Activate();
 
             // Assert
+            user.UpdatedAt.Should().NotBeNull();
             user.UpdatedAt.Should().BeAfter(oldUpdatedAt);
         }
 
@@ -147,7 +151,7 @@ namespace TaskScheduler.Domain.Tests.Entities
             // Arrange
             var user = new UserBuilder().Build();
 
-            var oldUpdatedAt = user.UpdatedAt;
+            var oldUpdatedAt = user.UpdatedAt!.Value;
 
             Thread.Sleep(10);
 
@@ -155,6 +159,7 @@ namespace TaskScheduler.Domain.Tests.Entities
             user.Deactivate();
 
             // Assert
+            user.UpdatedAt.Should().NotBeNull();
             user.UpdatedAt.Should().BeAfter(oldUpdatedAt);
         }
 
@@ -164,7 +169,7 @@ namespace TaskScheduler.Domain.Tests.Entities
             // Arrange
             var user = new UserBuilder().Build();
 
-            var oldUpdatedAt = user.UpdatedAt;
+            var oldUpdatedAt = user.UpdatedAt!.Value;
 
             Thread.Sleep(10);
 
@@ -172,6 +177,7 @@ namespace TaskScheduler.Domain.Tests.Entities
             user.ChangePassword("new-password-hash");
 
             // Assert
+            user.UpdatedAt.Should().NotBeNull();
             user.UpdatedAt.Should().BeAfter(oldUpdatedAt);
         }
     }

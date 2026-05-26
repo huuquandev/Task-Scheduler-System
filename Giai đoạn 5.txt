@@ -1,0 +1,249 @@
+Review tổng thể dự án — Góc nhìn Senior
+
+  Những gì đã làm TỐT
+
+  Kiến trúc: Clean Architecture đúng sách — dependency flow không bị vi phạm ở đâu. Domain không biết Infrastructure, Application chỉ biết interface.
+
+  Domain Layer: Solid. Entity dùng private setter, behavior nằm trong entity (Pause/MarkAsFailed/etc.), Domain Events đúng pattern, CronExpression là Value Object thực thụ. Đây là phần tốt nhất của
+  project.
+
+  Application Layer: Commands/Queries/Handlers đủ dùng, FluentValidation có, Pipeline Behaviors có, AutoMapper có. Cấu trúc folder theo feature (Tasks/Auth) rõ ràng.
+
+  Infrastructure: Hangfire tích hợp đúng, ISchedulerService interface đặt ở Application layer — đúng. TaskExecutionService tách riêng để cả Hangfire lẫn manual trigger dùng chung — tốt.
+
+  API Layer: JWT, ExceptionHandlingMiddleware, ApiResponse wrapper, Swagger với Bearer — hoàn chỉnh.
+
+  ---
+  Những vấn đề cần chú ý trước khi test
+
+  Từ git status, User.cs trong Domain đang có thay đổi chưa staged — nên check lại xem có gì đang dở không.
+
+  ---
+  Hướng dẫn chi tiết phần Testing — Giai đoạn 5
+
+  Toàn cảnh test project hiện tại
+
+  Tests/
+  ├── TaskScheduler.Domain.Tests/          ← Khá đầy đủ (entities, events, value objects)
+  ├── TaskScheduler.Application.Tests/     ← Handlers có, Behaviors CÒN RỖNG
+  └── TaskScheduler.Infrastructure.Tests/  ← Hầu hết RỖNG
+
+  Không có Integration Test cho API layer (chưa tạo project).
+
+  ---
+  Chiến lược Testing — 3 tầng
+
+           API Integration Tests     ← Tầng 3 (làm sau)
+                ↑
+      Application Unit Tests         ← Tầng 2 (đang thiếu)
+                ↑
+        Domain Unit Tests            ← Tầng 1 (đã có, khá tốt)
+
+  ---
+  TẦNG 1 — Domain Tests (đã có, cần bổ sung)
+
+  Những gì đã có và đã tốt
+
+  File ScheduledTaskTests.cs đã cover được các case chính. Nhưng còn thiếu:
+
+  1. CronExpressionTests.cs — cần thêm case
+
+  Hiện tại có file nhưng chưa biết đủ chưa. Cần đảm bảo có:
+  - Test cron hợp lệ (0 0 * * *) → không throw
+  - Test cron sai format (abc xyz) → throw exception tại Domain, không phải controller
+  - Test GetNextOccurrence() trả về đúng thời gian tiếp theo
+  - Test equality: 2 CronExpression cùng value phải equal nhau (vì là Value Object)
+
+  2. ExecutionLogTests.cs và UserTests.cs
+
+  File đã tạo (thấy trong git status là đang modified). Đảm bảo cover:
+  - ExecutionLog: constructor tạo đúng, tính DurationMs khi finish, status transition
+  - User: PasswordHash không được lưu plaintext (chỉ kiểm tra field khác null/empty)
+
+  3. Domain Events Tests
+
+  Đã có TaskCreatedEventTests.cs, TaskCompletedEventTests.cs. Cần verify event chứa đúng data (TaskId, timestamp).
+
+  ---
+  TẦNG 2 — Application Tests (ĐÂY LÀ PHẦN CHÍNH CẦN LÀM)
+
+  2.1 Behaviors — ĐANG RỖNG, phải làm trước
+
+  ValidationBehaviorTests.cs — đây là pipe quan trọng nhất:
+
+  Scenario 1: Command hợp lệ → không throw, gọi next handler
+  Scenario 2: Command không hợp lệ → throw ValidationException, KHÔNG gọi next handler
+  Scenario 3: Command không có validator → vẫn chạy bình thường (pass-through)
+
+  Cách test: Dùng Moq tạo mock RequestHandlerDelegate<TResponse>, verify nó được gọi hay không.
+
+  LoggingBehaviorTests.cs và PerformanceBehaviorTests.cs:
+
+  LoggingBehavior: Mock ILogger, verify log được ghi khi request đến và khi response về.
+  PerformanceBehavior: Tạo handler giả chạy chậm (Thread.Sleep hoặc Task.Delay), verify behavior log warning khi vượt ngưỡng.
+
+  2.2 Command Handlers — đã có một số, cần đảm bảo pattern đúng
+
+  Nhìn vào CreateTaskCommandHandlerTests.cs hiện tại — pattern đúng nhưng thiếu một điểm quan trọng: handler không test việc gọi ISchedulerService. Nếu CreateTaskHandler chưa gọi ScheduleTaskAsync, test
+   này không phát hiện ra.
+
+  Cho mỗi command handler, cần test 3 nhóm:
+
+  Happy path: Input hợp lệ → entity được tạo/update đúng, repository được gọi đúng số lần.
+
+  Side effects: Sau khi save, ISchedulerService được gọi (với đúng method — ScheduleTaskAsync hay UnscheduleTaskAsync). Đây là điểm hay bị quên.
+
+  Error cases: Task không tồn tại → throw KeyNotFoundException. Task sai trạng thái → throw InvalidOperationException.
+
+  Ví dụ cụ thể cho PauseTaskCommandHandlerTests.cs:
+  Test 1: Task Active → Pause thành công → ISchedulerService.UnscheduleTaskAsync được gọi
+  Test 2: Task không tồn tại → throw KeyNotFoundException
+  Test 3: Task đang Pending/Running/Completed → throw InvalidOperationException
+
+  DeleteTaskCommandHandlerTests.cs: Verify IsDeleted = true sau khi xóa (soft delete), verify UnscheduleTaskAsync được gọi.
+
+  2.3 Validators
+
+  CreateTaskCommandValidatorTests.cs và UpdateTaskCommandValidatorTests.cs — đã có file. Pattern:
+
+  [Theory] với các case:
+  - Name rỗng → invalid
+  - Name quá dài → invalid
+  - CronExpression sai format → invalid
+  - MaxRetries âm → invalid
+  - Input hợp lệ → valid
+
+  Dùng validator.TestValidate(command) của FluentValidation để test trực tiếp, không cần mock gì.
+
+  2.4 Query Handlers
+
+  GetTaskByIdQueryHandlerTests.cs — đã có. Cần đảm bảo:
+  - Task tồn tại → trả về DTO đúng data (test mapping)
+  - Task không tồn tại → throw KeyNotFoundException
+  - Task đã soft delete → không trả về (nếu repo filter IsDeleted)
+
+  ---
+  TẦNG 3 — Infrastructure Tests (Integration Tests)
+
+  Đây là phần quan trọng nhất còn thiếu. Repository tests hiện tại đều rỗng.
+
+  Setup cơ sở — DbContextFactory.cs
+
+  Đây là file quan trọng nhất của Infrastructure Tests. Có 2 lựa chọn:
+
+  Option A — SQLite in-memory (khuyến nghị cho CI/CD):
+  Dùng EF Core SQLite provider để tạo DB tạm trong test
+  Ưu điểm: Không cần PostgreSQL thật, chạy được ở mọi máy
+  Nhược điểm: Một số PostgreSQL-specific feature không test được
+
+  Option B — PostgreSQL thật với Testcontainers (mạnh hơn):
+  Dùng Testcontainers.PostgreSql để spin up PostgreSQL Docker container
+  Ưu điểm: Test chính xác như production
+  Nhược điểm: Cần Docker, chậm hơn
+
+  Với dự án này, khuyến nghị SQLite vì đơn giản hơn và đủ để test repository logic.
+
+  TaskRepositoryTests.cs — hiện rỗng, cần implement
+
+  Các test cần có:
+
+  GetByIdAsync_ExistingTask → trả về task đúng
+  GetByIdAsync_NotFound → trả về null
+  GetByIdAsync_SoftDeleted → không trả về (nếu repo filter IsDeleted)
+
+  AddAsync → task được lưu vào DB, có thể query lại được
+  UpdateAsync → property thay đổi được persist
+
+  GetPagedAsync_WithFilter → chỉ trả về task khớp filter
+  GetPagedAsync_Pagination → trả về đúng page size và page number
+
+  SoftDelete → IsDeleted = true trong DB, query thường không thấy
+
+  Pattern cho mỗi test:
+  1. Arrange: tạo DbContext từ factory, seed data
+  2. Act: gọi repository method
+  3. Assert: query DB bằng DbContext riêng để verify (không dùng cùng DbContext với repository để tránh in-memory cache)
+
+  TokenServiceTests.cs — đã có file
+
+  HashPassword → không trả về plaintext
+  VerifyPassword → đúng password → true, sai → false
+  GenerateJwtToken → trả về string hợp lệ, decode được, chứa đúng claims (username, email, role)
+  JwtToken_Expiry → token tạo với expiry đúng
+
+  HangfireSchedulerServiceTests.cs — tricky
+
+  Hangfire khó test vì RecurringJob.AddOrUpdate là static method. Có 2 cách:
+
+  Cách 1: Dùng Hangfire's BackgroundJobClient thông qua interface IRecurringJobManager — inject và mock được.
+
+  Cách 2: Test gián tiếp — verify rằng sau khi ScheduleTaskAsync được gọi, task có trong Hangfire storage (dùng Hangfire memory storage cho test).
+
+  ---
+  TẦNG 4 — API Integration Tests (chưa có project)
+
+  Đây là layer cuối cùng. Tạo project mới TaskScheduler.Api.Tests:
+
+  // Dùng WebApplicationFactory<Program> để tạo test server in-memory
+  // Test full request → response cycle
+
+  Các endpoint cần test:
+
+  Auth flow:
+  POST /api/v1/auth/register → 200 với userId
+  POST /api/v1/auth/register → 400 nếu username đã tồn tại
+  POST /api/v1/auth/login → 200 với JWT token
+  POST /api/v1/auth/login → 401 nếu sai password
+
+  Protected endpoints:
+  GET /api/v1/tasks → 401 nếu không có token
+  GET /api/v1/tasks → 200 nếu có token hợp lệ
+
+  Task CRUD:
+  POST /api/v1/tasks → 200 và trả về taskId
+  POST /api/v1/tasks với cron sai → 400
+  GET /api/v1/tasks/{id} với id không tồn tại → 404
+
+  ---
+  Thứ tự làm việc theo độ ưu tiên
+
+  Tuần này:
+  ├── 1. Fix behaviors tests (ValidationBehavior, LoggingBehavior) — 2-3 giờ
+  ├── 2. Hoàn thiện Domain Tests còn thiếu (CronExpression edge cases) — 1 giờ
+  ├── 3. Command handlers còn thiếu (Pause, Delete, Resume, Trigger) — 3-4 giờ
+  └── 4. Validator tests — 1-2 giờ
+
+  Tuần sau:
+  ├── 5. Setup DbContextFactory (SQLite) + TaskRepositoryTests — 3-4 giờ
+  ├── 6. TokenServiceTests — 1 giờ
+  └── 7. ExecutionLogRepository + UserRepository tests — 2 giờ
+
+  Sau đó:
+  └── 8. API Integration Tests (WebApplicationFactory) — 4-5 giờ
+
+  ---
+  Câu hỏi tự kiểm tra để verify bạn đang test đúng
+
+  1. Mỗi test chỉ test một thing — nếu test fail, bạn biết ngay vấn đề ở đâu không?
+  2. Test không phụ thuộc vào thứ tự chạy — test A và test B có thể đổi chỗ cho nhau không?
+  3. Repository tests dùng 2 DbContext riêng — một để setup, một để assert (tránh EF Core cache)?
+  └── 4. Validator tests — 1-2 giờ
+
+  Tuần sau:
+  ├── 5. Setup DbContextFactory (SQLite) + TaskRepositoryTests — 3-4 giờ
+  ├── 6. TokenServiceTests — 1 giờ
+  └── 7. ExecutionLogRepository + UserRepository tests — 2 giờ
+
+  Sau đó:
+  └── 8. API Integration Tests (WebApplicationFactory) — 4-5 giờ
+
+  ---
+  Câu hỏi tự kiểm tra để verify bạn đang test đúng
+
+  1. Mỗi test chỉ test một thing — nếu test fail, bạn biết ngay vấn đề ở đâu không?
+  2. Test không phụ thuộc vào thứ tự chạy — test A và test B có thể đổi chỗ cho nhau không?
+  3. Repository tests dùng 2 DbContext riêng — một để setup, một để assert (tránh EF Core cache)?
+  4. Handler tests verify cả side effects (ISchedulerService, ILogger) chứ không chỉ return value?
+  5. Tên test theo pattern MethodName_Scenario_ExpectedBehavior — đọc tên biết ngay test làm gì không?
+
+  Bắt đầu từ Behaviors tests vì đó là infrastructure của toàn bộ Application layer — nếu ValidationBehavior sai thì mọi command/query đều có thể bypass validation mà không ai biết.
