@@ -1,0 +1,266 @@
+Đánh giá thực tế — Bạn đang ở đâu
+
+  TẦNG 1 — Domain Tests         ✅ XONG (đủ và tốt)
+  TẦNG 2 — Application Tests    🔶 50% (một số handlers có, nhiều file rỗng)
+  TẦNG 3 — Infrastructure Tests ❌ Gần như TRỐNG (DbContextFactory rỗng)                                                                                                            
+  TẦNG 4 — API Integration      ❌ Chưa có project
+
+  Điểm đáng khen: Domain tests rất solid, UpdateTaskCommandHandlerTests viết đúng pattern — test cả happy path, error cases, side effects (RescheduleTaskAsync). Đây là chuẩn cần nhân rộng.
+
+  Điểm cần sửa ngay: DeleteTaskCommandHandlerTests có bug logic — test Handle_WhenRequestIsValid_ShouldDeleteTask và Handle_ShouldCallRepositoryUpdateAsync không await handler — chỉ tạo action rồi
+  assert mà không gọi, test luôn pass nhưng không test gì cả.
+
+  ---
+  PHẦN 1 — Hoàn thiện Application Tests (làm trước)
+
+  1.1 Fix bug trong DeleteTaskCommandHandlerTests
+
+  3 test cuối đang không await handler — assert chạy trước khi handler được gọi. Sửa pattern từ:
+  var action = () => handler.Handle(command, CancellationToken.None);
+  existingTask.IsDeleted.Should().BeTrue(); // ← luôn false vì handler chưa chạy
+  Thành:
+  await handler.Handle(command, CancellationToken.None);
+  existingTask.IsDeleted.Should().BeTrue();
+
+  1.2 PauseTaskCommandHandlerTests — đang rỗng
+
+  Cần 4 test theo đúng pattern của UpdateTaskCommandHandlerTests:
+
+  Test 1 — Task không tồn tại:
+  Setup repo.GetByIdAsync trả về null
+  → ThrowAsync<ArgumentException>("Task not found.")
+
+  Test 2 — Task không ở trạng thái Active:
+  Setup task với status Pending/Running/Completed
+  → ThrowAsync<InvalidOperationException>()
+  // Dùng [Theory][InlineData] cho 3 status
+
+  Test 3 — Happy path, verify repo:
+  Task Active → Pause() → repo.UpdateAsync được gọi Times.Once
+
+  Test 4 — Happy path, verify Scheduler:
+  Task Active → Pause() → schedulerMock.UnscheduleTaskAsync(task) Times.Once
+
+  1.3 Các handler còn thiếu test hoàn toàn
+
+  Bạn chưa có test cho: ResumeTaskHandler, ActiveTaskHandler, TriggerTaskHandler. Cùng pattern, chỉ khác hành động:
+
+  ┌────────────────────┬─────────────┬───────────────────────────────────────────────────────────────────┐
+  │      Handler       │ Verify repo │                         Verify Scheduler                          │
+  ├────────────────────┼─────────────┼───────────────────────────────────────────────────────────────────┤
+  │ ResumeTaskHandler  │ UpdateAsync │ ScheduleTaskAsync                                                 │
+  ├────────────────────┼─────────────┼───────────────────────────────────────────────────────────────────┤
+  │ ActiveTaskHandler  │ UpdateAsync │ ScheduleTaskAsync                                                 │
+  ├────────────────────┼─────────────┼───────────────────────────────────────────────────────────────────┤
+  │ TriggerTaskHandler │ UpdateAsync │ (không dùng scheduler trực tiếp — kiểm tra ITaskExecutionService) │
+  └────────────────────┴─────────────┴───────────────────────────────────────────────────────────────────┘
+
+  1.4 LoginCommandHandlerTests và RegisterCommandHandlerTests — đang rỗng
+
+  Cần mock IUserRepository + ITokenService. Các case:
+
+  Login:
+  Test 1: Username không tồn tại → UnauthorizedAccessException
+  Test 2: Sai password → UnauthorizedAccessException
+  Test 3: User bị deactivate → UnauthorizedAccessException
+  Test 4: Happy path → trả về AuthResponse có Token
+  Test 5: Happy path → GenerateJwtToken được gọi 1 lần
+
+  Register:
+  Test 1: Username đã tồn tại → InvalidOperationException
+  Test 2: Email đã tồn tại → InvalidOperationException
+  Test 3: Happy path → AddAsync được gọi, trả về Guid
+  Test 4: Happy path → HashPassword được gọi (không lưu plaintext)
+
+  1.5 ValidationBehaviorTests — quan trọng, đang rỗng
+
+  Đây là test cho pipeline behavior — cần dùng generic:
+
+  Setup: Tạo validator giả bằng Moq hoặc dùng validator thật (CreateTaskCommandValidator)
+
+  Test 1 — Command hợp lệ:
+    → RequestHandlerDelegate được gọi 1 lần (handler chạy bình thường)
+
+  Test 2 — Command không hợp lệ:
+    → Throw ValidationException
+    → RequestHandlerDelegate KHÔNG được gọi (handler bị chặn)
+
+  Test 3 — Không có validator đăng ký:
+    → RequestHandlerDelegate vẫn được gọi (pass-through)
+
+  Cách tạo mock delegate trong Moq:
+  var nextCalled = false;
+  RequestHandlerDelegate<Guid> next = () => {
+      nextCalled = true;
+      return Task.FromResult(Guid.NewGuid());
+  };
+
+  1.6 Validators — đã có file, cần content
+
+  CreateTaskCommandValidatorTests và UpdateTaskCommandValidatorTests — dùng FluentValidation's TestValidate:
+
+  // Không cần mock gì cả
+  var validator = new CreateTaskCommandValidator();
+  var result = validator.TestValidate(command);
+
+  // Assert
+  result.ShouldHaveValidationErrorFor(x => x.Name);
+  result.ShouldNotHaveValidationErrorFor(x => x.CronExpression);
+
+  Các case cần test:
+  - Name = "" / " " / null → lỗi
+  - Name > 200 ký tự → lỗi
+  - CronExpression = "abc xyz" → lỗi (validator gọi CronExpression.Create() → throw)
+  - MaxRetries < 0 → lỗi
+  - Tất cả hợp lệ → không có lỗi nào
+
+  ---
+  PHẦN 2 — Infrastructure Tests (làm sau Application)
+
+  2.1 Setup DbContextFactory trước — mọi test đều cần
+
+  DbContextFactory.cs đang rỗng — đây là nền móng. Cần implement bằng SQLite in-memory:
+
+  Bước 1: Thêm package vào Infrastructure.Tests project:
+    dotnet add Tests/TaskScheduler.Infrastructure.Tests package Microsoft.EntityFrameworkCore.Sqlite
+
+  Bước 2: Implement DbContextFactory tạo DbContext với SQLite:
+    - Mỗi lần gọi Create() → tạo DbContext mới với database name ngẫu nhiên
+    - Gọi EnsureCreated() để tạo schema
+    - Dispose DbContext sau mỗi test (implement IDisposable)
+
+  Bước 3: BaseInfrastructureTest kế thừa, mỗi test có DbContext sạch riêng
+
+  Quy tắc vàng của Repository tests: Dùng 2 DbContext khác nhau:
+  DbContext #1 → dùng để seed data (setup)
+  DbContext #2 → dùng để assert (query lại từ DB)
+  Lý do: EF Core cache entity trong DbContext — nếu dùng cùng 1 context, assert sẽ lấy từ cache, không phải từ DB thật → test có thể pass dù DB bị sai.
+
+  2.2 TaskRepositoryTests — ưu tiên cao nhất
+
+  Sau khi có DbContextFactory, implement theo thứ tự:
+
+  AddAsync:
+  → Seed 1 task → query lại bằng context #2 → task phải tồn tại trong DB
+
+  GetByIdAsync — found:
+  → Seed → GetById → trả về đúng task
+
+  GetByIdAsync — not found:
+  → GetById với Guid không tồn tại → trả về null
+
+  GetByIdAsync — soft deleted:
+  → Seed task với IsDeleted=true → GetById → trả về null (nếu repo filter)
+
+  UpdateAsync:
+  → Seed → MarkAsFailed() → UpdateAsync → query lại → status = Failed trong DB
+
+  GetPagedAsync — pagination:
+  → Seed 10 tasks → GetPaged(page=1, size=5) → trả về 5 tasks
+  → GetPaged(page=2, size=5) → trả về 5 tasks tiếp theo
+
+  GetPagedAsync — filter by status:
+  → Seed 3 Active + 2 Paused → filter Active → chỉ trả về 3
+
+  2.3 TokenServiceTests
+
+  Không cần DbContext, chỉ cần config JWT. Setup:
+  Tạo IConfiguration giả với Jwt:Secret, Jwt:Issuer, Jwt:Audience, Jwt:ExpiryMinutes
+  Khởi tạo TokenService(config)
+
+  Các test:
+  HashPassword → result khác plaintext
+  VerifyPassword → đúng password = true, sai = false
+  GenerateJwtToken → decode được bằng JwtSecurityTokenHandler, chứa claim "username"
+  GenerateJwtToken → token có expiry sau thời gian hiện tại
+
+  2.4 UserRepositoryTests và ExecutionLogRepositoryTests
+
+  Pattern giống TaskRepository nhưng đơn giản hơn:
+  UserRepository: GetByUsernameAsync, UsernameExistsAsync, EmailExistsAsync, AddAsync
+  ExecutionLogRepository: GetByTaskIdAsync (trả về logs của 1 task), AddAsync
+
+  2.5 HangfireSchedulerServiceTests — làm cuối, tricky nhất
+
+  Dùng Hangfire's in-memory storage thay vì PostgreSQL:
+  Đăng ký GlobalConfiguration.Configuration.UseMemoryStorage()
+  Gọi ScheduleTaskAsync → kiểm tra job có trong storage không
+  Gọi UnscheduleTaskAsync → job không còn trong storage
+
+  Nếu RecurringJob.AddOrUpdate là static và khó test, refactor HangfireSchedulerService để nhận IRecurringJobManager qua constructor injection thay vì gọi static trực tiếp — interface này Hangfire đã
+  cung cấp sẵn, mock được.
+
+  ---
+  PHẦN 3 — API Integration Tests (làm cuối cùng)
+
+  3.1 Tạo project mới
+
+  dotnet new xunit -n TaskScheduler.Api.Tests -o Tests/TaskScheduler.Api.Tests
+  dotnet add Tests/TaskScheduler.Api.Tests package Microsoft.AspNetCore.Mvc.Testing
+  dotnet add Tests/TaskScheduler.Api.Tests package Microsoft.EntityFrameworkCore.Sqlite
+  dotnet sln add Tests/TaskScheduler.Api.Tests
+
+  3.2 Setup CustomWebApplicationFactory
+
+  Đây là core của API tests — override các service để test không cần PostgreSQL thật và không cần Hangfire thật:
+
+  CustomWebApplicationFactory : WebApplicationFactory<Program>
+  → Override ConfigureWebHost:
+     - Replace DbContext → dùng SQLite in-memory
+     - Replace ISchedulerService → Mock (không cần Hangfire thật)
+     - Tạo DB + chạy migrations trước mỗi test
+
+  3.3 Các test cần có
+
+  Auth flow — test đầu tiên vì mọi test khác cần token:
+  POST /api/v1/auth/register → 200 OK + Guid
+  POST /api/v1/auth/register lần 2 cùng username → 400 Bad Request
+  POST /api/v1/auth/login đúng → 200 OK + JWT token
+  POST /api/v1/auth/login sai password → 401 Unauthorized
+
+  Protected endpoints:
+  GET /api/v1/tasks không có token → 401
+  GET /api/v1/tasks có token → 200
+
+  Task CRUD full flow:
+  Register → Login → dùng token:
+  POST /api/v1/tasks (valid) → 200 + taskId
+  POST /api/v1/tasks (cron sai) → 400
+  GET /api/v1/tasks/{id} (id vừa tạo) → 200 + task data
+  GET /api/v1/tasks/{id} (id không tồn tại) → 404
+  PUT /api/v1/tasks/{id} → 200
+  DELETE /api/v1/tasks/{id} → 200
+
+  Helper pattern — tái sử dụng login:
+  // Tạo method dùng chung trong base test class
+  private async Task<string> GetAuthTokenAsync()
+  {
+      // Register + Login → trả về token string
+      // Gán vào HttpClient.DefaultRequestHeaders.Authorization
+  }
+
+  ---
+  Thứ tự ưu tiên thực tế
+
+  Tuần này (Application):
+    1. Fix DeleteTaskCommandHandlerTests (bug không await)          — 15 phút
+    2. PauseTaskCommandHandlerTests                                 — 30 phút
+    3. ResumeTaskHandler + ActiveTaskHandler tests                  — 1 giờ
+    4. LoginCommandHandlerTests + RegisterCommandHandlerTests       — 1 giờ
+    5. ValidationBehaviorTests                                      — 1 giờ
+    6. CreateTaskCommandValidator + UpdateTaskCommandValidator tests — 45 phút
+
+  Tuần sau (Infrastructure):
+    7. DbContextFactory (SQLite) + BaseInfrastructureTest           — 1 giờ
+    8. TaskRepositoryTests (đầy đủ 7 cases)                        — 2 giờ
+    9. TokenServiceTests                                            — 45 phút
+    10. UserRepository + ExecutionLogRepository tests               — 1.5 giờ
+    11. HangfireSchedulerServiceTests                               — 1 giờ
+
+  Sau đó (API):
+    12. Tạo project + CustomWebApplicationFactory                   — 1.5 giờ
+    13. Auth flow tests                                             — 1 giờ
+    14. Task CRUD integration tests                                 — 2 giờ
+
+  Bắt đầu ngay bây giờ: Fix bug DeleteTaskCommandHandlerTests trước — 15 phút, thấy kết quả ngay, và nó dạy bạn cách await đúng trong async test. Sau đó làm PauseTaskCommandHandlerTests theo đúng
+  pattern của UpdateTaskCommandHandlerTests — file đó đã viết chuẩn, nhân bản lại là được.
