@@ -6,6 +6,5 @@ using TaskScheduler.Domain.Common;
 
 namespace TaskScheduler.Domain.Events
 {
-    public record TaskCreatedEvent(Guid TaskId, string Name) : IDomainEvent;
-    
+    public record TaskCreatedEvent(Guid TaskId, string Name) : DomainEvent;
 }

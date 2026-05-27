@@ -5,8 +5,8 @@ using System.Threading.Tasks;
 
 namespace TaskScheduler.Domain.Common
 {
-    public interface IDomainEvent
+    public abstract record DomainEvent : IDomainEvent
     {
-        DateTime OccurredOn { get; }
+        public DateTime OccurredOn { get; init; } = DateTime.UtcNow;
     }
 }

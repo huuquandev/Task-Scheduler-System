@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 
 namespace TaskScheduler.Domain.Common
 {
@@ -11,6 +10,8 @@ namespace TaskScheduler.Domain.Common
         public IReadOnlyList<IDomainEvent> DomainEvents => _domainEvents.AsReadOnly();
         protected void AddDomainEvent(IDomainEvent domainEvent)
         {
+            ArgumentNullException.ThrowIfNull(domainEvent);
+
             _domainEvents.Add(domainEvent);
         }
         public void ClearDomainEvents()
