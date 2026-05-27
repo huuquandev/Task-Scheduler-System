@@ -6,5 +6,5 @@ using TaskScheduler.Domain.Common;
 
 namespace TaskScheduler.Domain.Events
 {
-    public record TaskFailedEvent(Guid TaskId, string Reason) : IDomainEvent;
+    public record TaskFailedEvent(Guid TaskId, string Reason) : DomainEvent;
 }

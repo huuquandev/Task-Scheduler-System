@@ -1,7 +1,6 @@
 using FluentAssertions;
 using TaskScheduler.Domain.ValueObjects;
 using Xunit;
-
 namespace TaskScheduler.Domain.Tests.ValueObjects
 {
     public class CronExpressionTests

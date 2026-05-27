@@ -58,5 +58,11 @@ namespace TaskScheduler.Domain.ValueObjects
         {
             return Value;
         }
+        public DateTime? GetNextOccurrence(DateTime from)
+        {
+            var cron = Cronos.CronExpression.Parse(Value);
+
+            return cron.GetNextOccurrence(from, TimeZoneInfo.Utc);
+        }
     }
 }

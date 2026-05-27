@@ -6,6 +6,6 @@ using TaskScheduler.Domain.Common;
 
 namespace TaskScheduler.Domain.Events
 {
-    public record TaskPausedEvent(Guid TaskId) : IDomainEvent;
+    public record TaskPausedEvent(Guid TaskId) : DomainEvent;
 
 }
