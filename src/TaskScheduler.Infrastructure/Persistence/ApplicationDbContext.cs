@@ -6,7 +6,7 @@ using TaskScheduler.Domain.ValueObjects;
 
 namespace TaskScheduler.Infrastructure.Persistence
 {
-    public class ApplicationDbContext : DbContext
+    public class ApplicationDbContext : DbContext, IUnitOfWork
     {
         private readonly IPublisher _publisher;
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options, IPublisher publisher): base(options)

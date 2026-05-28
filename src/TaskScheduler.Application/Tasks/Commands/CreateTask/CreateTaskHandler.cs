@@ -11,10 +11,11 @@ namespace TaskScheduler.Application.Tasks.Commands.CreateTask
     public class CreateTaskHandler : IRequestHandler<CreateTaskCommand, Guid>
     {
         private readonly ITaskRepository _repo;
-
-        public CreateTaskHandler(ITaskRepository repo)
+        private readonly IUnitOfWork _unitOfWork;
+        public CreateTaskHandler(ITaskRepository repo, IUnitOfWork unitOfWork)
         {
             _repo = repo;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<Guid> Handle(CreateTaskCommand request, CancellationToken cancellationToken)
@@ -28,7 +29,11 @@ namespace TaskScheduler.Application.Tasks.Commands.CreateTask
             );
             
             task.UpdateNextRunTime();
+            // Add DBContext
             await _repo.AddAsync(task);
+
+            // Save change to DB
+            await _unitOfWork.SaveChangesAsync();
 
             return task.Id;
 

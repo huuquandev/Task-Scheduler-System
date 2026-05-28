@@ -11,10 +11,13 @@ namespace TaskScheduler.Infrastructure.Scheduling
     {
         private readonly ITaskRepository _repo;
         private readonly ITaskExecutionLogRepository _logrepo;
-        public TaskExecutionService(ITaskRepository repo, ITaskExecutionLogRepository logrepo)
+        private readonly IUnitOfWork _unitOfWork;
+
+        public TaskExecutionService(ITaskRepository repo, ITaskExecutionLogRepository logrepo, IUnitOfWork unitOfWork)
         {
             _repo = repo;
             _logrepo = logrepo;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task ExecuteTask(Guid taskId)
@@ -28,10 +31,14 @@ namespace TaskScheduler.Infrastructure.Scheduling
             {
                 // Task start
                 task.MarkAsRunning();
+                // Update status task
                 await _repo.UpdateAsync(task);
 
                 // Create execution log
                 await _logrepo.AddAsync(log);
+
+                // Save change to DB
+                await _unitOfWork.SaveChangesAsync();
 
                 // Execute task
                 await ExecuteCommand(task);
@@ -51,6 +58,7 @@ namespace TaskScheduler.Infrastructure.Scheduling
             }
             await _repo.UpdateAsync(task);
             await _logrepo.UpdateAsync(log);
+            await _unitOfWork.SaveChangesAsync();
         }
 
         private Task ExecuteCommand(ScheduledTask task)

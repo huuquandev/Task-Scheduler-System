@@ -16,12 +16,15 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.CreateTask
             _validator = new CreateTaskCommandValidator();
         }
 
-        [Fact]
-        public void Validate_WhenNameIsEmpty_ShouldHaveValidationError()
+        [Theory]
+        [InlineData("")]
+        [InlineData(" ")]
+        [InlineData(null)]
+        public void Validate_WhenNameIsEmpty_ShouldHaveValidationError(string name)
         {
             // Arrange
             var command = new CreateTaskCommand(
-                "",
+                name,
                 "Description",
                 "0 0 * * *",
                 "backup.exe",

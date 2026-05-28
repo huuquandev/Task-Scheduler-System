@@ -49,12 +49,14 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.UpdateTask
         }
 
         
-        [Fact]
-        public void Validate_WhenNameIsEmpty_ShouldHaveValidationError()
+        [Theory]
+        [InlineData("")]
+        [InlineData(" ")]
+        public void Validate_WhenNameIsEmpty_ShouldHaveValidationError(string name)
         {
             var command = new UpdateTaskCommand(
                 Guid.NewGuid(),
-                "",
+                name,
                 null,
                 null,
                 null,

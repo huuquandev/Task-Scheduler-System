@@ -11,11 +11,13 @@ namespace TaskScheduler.Application.Tasks.Commands.UpdateTask
     public class UpdateTaskHandler : IRequestHandler<UpdateTaskCommand, Unit>
     {
         private readonly ITaskRepository _repo;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly ISchedulerService _scheduler;
 
-        public UpdateTaskHandler(ITaskRepository repo, ISchedulerService scheduler)
+        public UpdateTaskHandler(ITaskRepository repo, IUnitOfWork unitOfWork, ISchedulerService scheduler)
         {
             _repo = repo;
+            _unitOfWork = unitOfWork;
             _scheduler = scheduler;
         }
         public async Task<Unit> Handle(UpdateTaskCommand request, CancellationToken cancellationToken)
@@ -36,10 +38,15 @@ namespace TaskScheduler.Application.Tasks.Commands.UpdateTask
                 request.MaxRetries ?? task.MaxRetries
             );
 
+            // Update DBContext
             await _repo.UpdateAsync(task);
             
             // Reschedule the task in the scheduler
             await _scheduler.RescheduleTaskAsync(task);
+
+            // Save change to DB
+            await _unitOfWork.SaveChangesAsync();
+
             return Unit.Value;
         }
     }

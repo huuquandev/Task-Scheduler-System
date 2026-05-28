@@ -23,7 +23,6 @@ namespace TaskScheduler.Infrastructure.Repositories
         public async Task AddAsync(ScheduledTask task)
         {
             await _context.ScheduledTasks.AddAsync(task);
-            await _context.SaveChangesAsync();
         }
 
         public async Task<List<ScheduledTask>> GetAllAsync()
@@ -39,7 +38,6 @@ namespace TaskScheduler.Infrastructure.Repositories
         public async Task UpdateAsync(ScheduledTask task)
         {
             _context.ScheduledTasks.Update(task);
-            await _context.SaveChangesAsync();
         }
         public async Task<PagedResult<ScheduledTask>> GetPagedAsync(int page, int pageSize)
         {

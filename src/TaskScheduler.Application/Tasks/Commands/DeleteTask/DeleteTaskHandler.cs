@@ -12,10 +12,12 @@ namespace TaskScheduler.Application.Tasks.Commands.DeleteTask
     public class DeleteTaskHandler : IRequestHandler<DeleteTaskCommand, Unit>
     {
         private readonly ITaskRepository _repo;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly ISchedulerService _scheduler;
-        public DeleteTaskHandler(ITaskRepository repo, ISchedulerService scheduler)
+        public DeleteTaskHandler(ITaskRepository repo, IUnitOfWork unitOfWork, ISchedulerService scheduler)
         {
             _repo = repo;
+            _unitOfWork = unitOfWork;
             _scheduler = scheduler;
         }
         public async Task<Unit> Handle(DeleteTaskCommand request, CancellationToken cancellationToken)
@@ -28,10 +30,15 @@ namespace TaskScheduler.Application.Tasks.Commands.DeleteTask
                 throw new InvalidOperationException("Task deleted");
                 
             task.SoftDelete();
-            await _repo.UpdateAsync(task);
 
+            // Update DBContext
+            await _repo.UpdateAsync(task);
+            
             // Cancel the task in the scheduler if it's scheduled
             await _scheduler.UnscheduleTaskAsync(task.Id);
+
+            // Save change to DB
+            await _unitOfWork.SaveChangesAsync();
 
             return Unit.Value;
         }

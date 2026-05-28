@@ -11,10 +11,12 @@ namespace TaskScheduler.Application.Tasks.Commands.ResumeTask
     public class ResumeTaskHandler : IRequestHandler<ResumeTaskCommand, Unit>
     {
         private readonly ITaskRepository _repo;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly ISchedulerService _scheduler;
-        public ResumeTaskHandler(ITaskRepository repo, ISchedulerService scheduler)
+        public ResumeTaskHandler(ITaskRepository repo, IUnitOfWork unitOfWork, ISchedulerService scheduler)
         {
             _repo = repo;
+            _unitOfWork = unitOfWork;
             _scheduler = scheduler;
         }
         
@@ -31,9 +33,16 @@ namespace TaskScheduler.Application.Tasks.Commands.ResumeTask
                 throw new InvalidOperationException("Only paused tasks can be resumed.");
                 
             task.MarkAsActive();
+
+            // Update DBContext
             await _repo.UpdateAsync(task);
+
             // execution
             await _scheduler.ScheduleTaskAsync(task);
+
+            // Save change to DB
+            await _unitOfWork.SaveChangesAsync();
+
             return Unit.Value;
         }
     }

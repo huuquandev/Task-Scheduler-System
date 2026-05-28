@@ -82,7 +82,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                   Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Secret"]!))
           };
       });
-      
+services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<AppDbContext>());
+     
 // Hangfire
 builder.Services.AddHangfire(config =>
 {
