@@ -57,7 +57,7 @@ namespace TaskScheduler.Infrastructure.Scheduling
 
             }
             await _repo.UpdateAsync(task);
-            await _logrepo.UpdateAsync(log);
+            await _logrepo.AddAsync(log);
             await _unitOfWork.SaveChangesAsync();
         }
 

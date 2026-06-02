@@ -8,6 +8,7 @@ using TaskScheduler.Application.Interfaces;
 using TaskScheduler.Domain.Entities;
 using TaskScheduler.Infrastructure.Persistence;
 using TaskScheduler.Application.Common.Models;
+using TaskScheduler.Domain.Enums;
 
 namespace TaskScheduler.Infrastructure.Repositories
 {
@@ -39,13 +40,16 @@ namespace TaskScheduler.Infrastructure.Repositories
         {
             _context.ScheduledTasks.Update(task);
         }
-        public async Task<PagedResult<ScheduledTask>> GetPagedAsync(int page, int pageSize)
+        public async Task<PagedResult<ScheduledTask>> GetPagedAsync(int page, int pageSize, ScheduledTaskStatus? status)
         {
-            var query = _context.ScheduledTasks.Where(x => !x.IsDeleted);
+            var query = _context.ScheduledTasks
+                    .Where(x => !x.IsDeleted)
+                    .Where(x => !status.HasValue || x.Status == status.Value);
 
             var totalCount = await query.CountAsync();
 
             var items = await query
+                .Where(s => !status.HasValue || s.Status == status.Value)
                 .OrderByDescending(x => x.CreatedAt)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)

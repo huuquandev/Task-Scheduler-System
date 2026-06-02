@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using TaskScheduler.Domain.Common;
 using TaskScheduler.Domain.Entities;
 using TaskScheduler.Domain.ValueObjects;
-
+using TaskScheduler.Application.Interfaces;
 namespace TaskScheduler.Infrastructure.Persistence
 {
     public class ApplicationDbContext : DbContext, IUnitOfWork

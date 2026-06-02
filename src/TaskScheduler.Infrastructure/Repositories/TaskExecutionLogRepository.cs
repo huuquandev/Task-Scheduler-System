@@ -20,12 +20,6 @@ namespace TaskScheduler.Infrastructure.Repositories
         public async Task AddAsync(TaskExecutionLog task)
         {
             await _context.TaskExecutionLogs.AddAsync(task);
-            await _context.SaveChangesAsync();
-        }
-        public async Task UpdateAsync(TaskExecutionLog task)
-        {
-            _context.TaskExecutionLogs.Update(task);
-            await _context.SaveChangesAsync();
         }
         public async Task<List<TaskExecutionLog>> GetByTaskIdAsync(Guid id)
         {

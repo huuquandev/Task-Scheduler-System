@@ -17,6 +17,7 @@ using TaskScheduler.Application.Tasks.Commands.TriggerTask;
 using TaskScheduler.Application.Tasks.Commands.ActiveTask;
 using TaskScheduler.Application.Tasks.Queries.GetTasksPaged;
 using Microsoft.AspNetCore.Authorization;
+using TaskScheduler.Domain.Enums;
 namespace TaskScheduler.Api.Controllers
 {
     [ApiController]
@@ -107,9 +108,9 @@ namespace TaskScheduler.Api.Controllers
         [HttpGet("paged")]
         [SwaggerOperation(Summary = "Retrieve paged scheduled tasks.")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> GetPaged([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        public async Task<IActionResult> GetPaged([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] ScheduledTaskStatus? status = null)
         {
-            var result = await _mediator.Send(new GetTasksPagedQuery(page, pageSize));
+            var result = await _mediator.Send(new GetTasksPagedQuery(page, pageSize, status));
             return Success(result, "Success");
         }
         

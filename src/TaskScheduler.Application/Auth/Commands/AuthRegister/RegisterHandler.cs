@@ -11,11 +11,13 @@ namespace TaskScheduler.Application.Auth.Commands.AuthRegister
       {
           private readonly IUserRepository _userRepository;
           private readonly ITokenService _tokenService;
+        private readonly IUnitOfWork _unitOfWork;
 
-          public RegisterHandler(IUserRepository userRepository, ITokenService tokenService)
+          public RegisterHandler(IUserRepository userRepository, ITokenService tokenService, IUnitOfWork unitOfWork)
           {
               _userRepository = userRepository;
               _tokenService = tokenService;
+              _unitOfWork = unitOfWork;
           }
 
           public async Task<Guid> Handle(RegisterCommand request, CancellationToken cancellationToken)
@@ -37,7 +39,7 @@ namespace TaskScheduler.Application.Auth.Commands.AuthRegister
               };
 
               await _userRepository.AddAsync(user);
-
+              await _unitOfWork.SaveChangesAsync();
               return user.Id;
           }
       }

@@ -64,6 +64,7 @@ builder.Services.AddScoped<ITaskExecutionLogRepository, TaskExecutionLogReposito
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<ITaskExecutionService, TaskExecutionService>();
+builder.Services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ApplicationDbContext>());
 builder.Services.AddValidatorsFromAssemblyContaining<CreateTaskCommandValidator>();
 builder.Services.AddTransient(typeof(IPipelineBehavior<,>),typeof(ValidationBehavior<,>));
 builder.Services.AddAutoMapper(typeof(TaskMappingProfile).Assembly);
@@ -82,7 +83,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                   Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Secret"]!))
           };
       });
-services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<AppDbContext>());
+
      
 // Hangfire
 builder.Services.AddHangfire(config =>

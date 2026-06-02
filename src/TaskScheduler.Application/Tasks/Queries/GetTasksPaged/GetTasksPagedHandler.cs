@@ -25,7 +25,7 @@ namespace TaskScheduler.Application.Tasks.Queries.GetTasksPaged
 
         public async Task<PagedResult<TaskDto>> Handle(GetTasksPagedQuery request, CancellationToken cancellationToken)
         {
-            var pagedTasks = await _repo.GetPagedAsync(request.Page, request.PageSize);
+            var pagedTasks = await _repo.GetPagedAsync(request.Page, request.PageSize, request.Status);
             var taskDtos = _mapper.Map<List<TaskDto>>(pagedTasks.Items);
             return new PagedResult<TaskDto>(taskDtos, pagedTasks.TotalCount, request.Page, request.PageSize);
         }
