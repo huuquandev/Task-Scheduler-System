@@ -29,6 +29,35 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.PauseTask
             await action.Should().ThrowAsync<ArgumentException>().WithMessage("Task not found.");
         }
 
+        [Fact]
+        public async Task Handle_WhenTaskIsDeleted_ShouldThrowInvalidOperationException()
+        {
+            // Arrange
+            var repoMock = new Mock<ITaskRepository>();
+            
+            var existingTask = new ScheduledTask(
+                "Test Task",
+                "This is a test task",
+                CronExpression.Create("0 0 * * *"),
+                "test.exe",
+                3)
+            {
+                IsDeleted = true
+            };
+
+            repoMock.Setup(x => x.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync(existingTask);
+
+            var command = new PauseTaskCommand(Guid.NewGuid());
+
+            var handler = new PauseTaskCommand(repoMock.Object, Mock.Of<ISchedulerService>());
+
+            // Act
+            var action = () => handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            await action.Should().ThrowAsync<ArgumentException>().WithMessage("Task deleted");
+        }
+
         [Theory]
         [InlineData("Pending")]
         [InlineData("Running")]
