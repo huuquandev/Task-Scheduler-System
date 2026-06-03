@@ -11,7 +11,7 @@ namespace TaskScheduler.Application.Auth.Commands.AuthRegister
       {
           private readonly IUserRepository _userRepository;
           private readonly ITokenService _tokenService;
-        private readonly IUnitOfWork _unitOfWork;
+          private readonly IUnitOfWork _unitOfWork;
 
           public RegisterHandler(IUserRepository userRepository, ITokenService tokenService, IUnitOfWork unitOfWork)
           {

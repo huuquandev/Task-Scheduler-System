@@ -35,11 +35,11 @@ namespace TaskScheduler.Api.Controllers
         [HttpPost]
         [SwaggerOperation(Summary = "Creates a new scheduled task.")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> Create(CreateTaskCommand cmd)
+        public async Task<IActionResult> Create([FromBody] CreateTaskCommand cmd)
         {
             var result = await _mediator.Send(cmd);
             return Success(result,"Task Created successfully");        
-    }
+        }
 
         [HttpGet]
         [SwaggerOperation(Summary = "Retrieves all scheduled tasks.")]
@@ -53,7 +53,7 @@ namespace TaskScheduler.Api.Controllers
         [HttpPut("{id}")]
         [SwaggerOperation(Summary = "Update scheduled task.")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> Update(Guid id, UpdateTaskCommand cmd)
+        public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] UpdateTaskCommand cmd)
         {
             cmd = cmd with { Id = id };
             var result = await _mediator.Send(cmd);
@@ -63,7 +63,7 @@ namespace TaskScheduler.Api.Controllers
         [HttpGet("{id}")]
         [SwaggerOperation(Summary = "Retrieves details scheduled tasks.")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> GetById(Guid id)
+        public async Task<IActionResult> GetById([FromRoute] Guid id)
         {
             var result = await _mediator.Send(new GetTaskByIdQuery(id));
             return Success(result, "Success");
@@ -72,7 +72,7 @@ namespace TaskScheduler.Api.Controllers
         [HttpDelete("{id}")]
         [SwaggerOperation(Summary = "Delete scheduled task.")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> Delete(Guid id)
+        public async Task<IActionResult> Delete([FromRoute] Guid id)
         {
             var result = await _mediator.Send(new DeleteTaskCommand(id));
             return Success(result,"Task Deleted successfully");        
@@ -81,7 +81,7 @@ namespace TaskScheduler.Api.Controllers
         [HttpPost("{id}/pause")]
         [SwaggerOperation(Summary = "Pause scheduled task.")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> Pause(Guid id)
+        public async Task<IActionResult> Pause([FromRoute] Guid id)
         {
             var result = await _mediator.Send(new PauseTaskCommand(id));
             return Success(result,"Task Paused successfully");        
@@ -90,7 +90,7 @@ namespace TaskScheduler.Api.Controllers
         [HttpPost("{id}/resume")]
         [SwaggerOperation(Summary = "Resume scheduled task.")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> Resume(Guid id)
+        public async Task<IActionResult> Resume([FromRoute] Guid id)
         {
             var result = await _mediator.Send(new ResumeTaskCommand(id));
             return Success(result,"Task has resumed successfully");        
@@ -99,7 +99,7 @@ namespace TaskScheduler.Api.Controllers
         [HttpPost("{id}/trigger")]
         [SwaggerOperation(Summary = "Trigger scheduled task.")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> Trigger(Guid id)
+        public async Task<IActionResult> Trigger([FromRoute] Guid id)
         {
             var result = await _mediator.Send(new TriggerTaskCommand(id));
             return Success(result,"Task triggered successfully.");        
@@ -117,7 +117,7 @@ namespace TaskScheduler.Api.Controllers
         [HttpPost("{id}/activate")]
         [SwaggerOperation(Summary = "Activate a scheduled task.")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> Activate(Guid id)
+        public async Task<IActionResult> Activate([FromRoute] Guid id)
         {
             var result = await _mediator.Send(new ActiveTaskCommand(id));
             return Success(result,"Task has activated successfully");        

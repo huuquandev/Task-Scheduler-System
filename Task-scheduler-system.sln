@@ -17,6 +17,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{0AB3BF05
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TaskScheduler.Domain.Tests", "Tests\TaskScheduler.Domain.Tests\TaskScheduler.Domain.Tests.csproj", "{EFDCFA79-EDF7-4C7B-858E-6E0B04B4E992}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TaskScheduler.Api.Tests", "Tests\TaskScheduler.Api.Tests\TaskScheduler.Api.Tests.csproj", "{671C9FA5-F1FB-4C85-9E7D-CAC27C222A3E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -87,6 +89,18 @@ Global
 		{EFDCFA79-EDF7-4C7B-858E-6E0B04B4E992}.Release|x64.Build.0 = Release|Any CPU
 		{EFDCFA79-EDF7-4C7B-858E-6E0B04B4E992}.Release|x86.ActiveCfg = Release|Any CPU
 		{EFDCFA79-EDF7-4C7B-858E-6E0B04B4E992}.Release|x86.Build.0 = Release|Any CPU
+		{671C9FA5-F1FB-4C85-9E7D-CAC27C222A3E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{671C9FA5-F1FB-4C85-9E7D-CAC27C222A3E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{671C9FA5-F1FB-4C85-9E7D-CAC27C222A3E}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{671C9FA5-F1FB-4C85-9E7D-CAC27C222A3E}.Debug|x64.Build.0 = Debug|Any CPU
+		{671C9FA5-F1FB-4C85-9E7D-CAC27C222A3E}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{671C9FA5-F1FB-4C85-9E7D-CAC27C222A3E}.Debug|x86.Build.0 = Debug|Any CPU
+		{671C9FA5-F1FB-4C85-9E7D-CAC27C222A3E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{671C9FA5-F1FB-4C85-9E7D-CAC27C222A3E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{671C9FA5-F1FB-4C85-9E7D-CAC27C222A3E}.Release|x64.ActiveCfg = Release|Any CPU
+		{671C9FA5-F1FB-4C85-9E7D-CAC27C222A3E}.Release|x64.Build.0 = Release|Any CPU
+		{671C9FA5-F1FB-4C85-9E7D-CAC27C222A3E}.Release|x86.ActiveCfg = Release|Any CPU
+		{671C9FA5-F1FB-4C85-9E7D-CAC27C222A3E}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -96,5 +110,6 @@ Global
 		{C558A131-CF09-4ED0-A8AE-8B8CAF84D636} = {B1399006-2BBD-4208-9167-8A27CFF742E2}
 		{A8F56513-25EC-46B8-A987-F98DEF75A731} = {B1399006-2BBD-4208-9167-8A27CFF742E2}
 		{EFDCFA79-EDF7-4C7B-858E-6E0B04B4E992} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{671C9FA5-F1FB-4C85-9E7D-CAC27C222A3E} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal

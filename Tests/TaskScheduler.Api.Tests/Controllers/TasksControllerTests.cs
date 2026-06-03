@@ -1,0 +1,230 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using FluentAssertions;
+using System.Net;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using TaskScheduler.Application.Auth.DTOs;
+using TaskScheduler.Application.Auth.Commands.AuthLogin;
+using TaskScheduler.Application.Auth.Commands.AuthRegister;
+using TaskScheduler.Application.Tasks.Queries.GetTaskById;
+using TaskScheduler.Application.Tasks.Commands.CreateTask;
+using TaskScheduler.Application.Tasks.Commands.UpdateTask;
+using Xunit;
+namespace TaskScheduler.Api.Tests.Controllers
+{
+    public class TasksControllerTests : ApiTestBase
+    {
+        public TasksControllerTests(CustomWebApplicationFactory factory) : base(factory)
+        {
+        }
+
+        private async Task<string> GetAuthTokenAsync()
+        {
+            var username = $"user_{Guid.NewGuid():N}";
+
+            var password = "Password123!";
+
+            var email = $"{username}@example.com";
+
+            await Client.PostAsJsonAsync( "/api/v1/auth/register", new RegisterCommand(username, email, password, password));
+
+            var loginResponse = await Client.PostAsJsonAsync("/api/v1/auth/login", new LoginCommand(username, password));
+
+            loginResponse.EnsureSuccessStatusCode();
+
+            var authResponse = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>();
+
+            return authResponse!.Token;
+        }
+
+        [Fact]
+        public async Task GetTasks_WithoutToken_Should_Return_Unauthorized()
+        {
+            // Act
+            var response = await Client.GetAsync("/api/v1/tasks");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        }
+
+        [Fact]
+        public async Task GetTasks_WithToken_Should_Return_Ok()
+        {
+            // Arrange
+            var token = await GetAuthTokenAsync();
+
+            Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            // Act
+            var response = await Client.GetAsync("/api/v1/tasks");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        [Fact]
+        public async Task CreateTask_Should_Return_TaskId()
+        {
+            // Arrange
+            var token = await GetAuthTokenAsync();
+
+            Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var request = new CreateTaskCommand(
+                        "Backup Job",
+                        "Daily backup task",
+                        "0 * * * *",
+                        "backup.exe",
+                        3);
+
+            // Act
+            var response = await Client.PostAsJsonAsync("/api/v1/tasks", request);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var taskid = await response.Content.ReadFromJsonAsync<Guid>();
+            taskid.Should().NotBeEmpty();
+        }
+
+        [Fact]
+        public async Task CreateTask_InvalidCron_Should_Return_400()
+        {
+            // Arrange
+            var token = await GetAuthTokenAsync();
+
+            Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var request = new CreateTaskCommand(
+                        "Backup Job",
+                        "Daily backup task",
+                        "invalid-cron",
+                        "backup.exe",
+                        3);
+
+            // Act
+            var response = await Client.PostAsJsonAsync("/api/v1/tasks", request);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        }
+
+        [Fact]
+        public async Task GetTaskById_Should_Return_Task()
+        {
+            // Arrange
+            var token = await GetAuthTokenAsync();
+
+            Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var createRequest = new CreateTaskCommand(
+                        "Backup Job",
+                        "Daily backup task",
+                        "0 * * * *",
+                        "backup.exe",
+                        3);
+
+            var createResponse = await Client.PostAsJsonAsync("/api/v1/tasks", createRequest);
+
+            createResponse.EnsureSuccessStatusCode();
+
+            var taskId = await createResponse.Content.ReadFromJsonAsync<Guid>();
+
+            // Act
+            var response = await Client.GetAsync($"/api/v1/tasks/{taskId}");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var task = await response.Content.ReadFromJsonAsync<TaskDto>();
+
+            task.Should().NotBeNull();
+            task!.Id.Should().Be(taskId);
+            task.Name.Should().Be(createRequest.Name);
+        }
+
+        [Fact]
+        public async Task GetTaskById_NotFound_Should_Return_404()
+        {
+            // Arrange
+            var token = await GetAuthTokenAsync();
+
+            Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var nonExistentTaskId = Guid.NewGuid();
+
+            // Act
+            var response = await Client.GetAsync($"/api/v1/tasks/{nonExistentTaskId}");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        }
+
+        [Fact]
+        public async Task UpdateTask_Should_Return_200()
+        {
+            // Arrange
+            var token = await GetAuthTokenAsync();
+
+            Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var createRequest = new CreateTaskCommand(
+                        "Backup Job",
+                        "Daily backup task",
+                        "0 * * * *",
+                        "backup.exe",
+                        3);
+
+            var createResponse = await Client.PostAsJsonAsync("/api/v1/tasks", createRequest);
+
+            createResponse.EnsureSuccessStatusCode();
+
+            var taskId = await createResponse.Content.ReadFromJsonAsync<Guid>();
+
+            var updateRequest = new UpdateTaskCommand(
+                taskId,
+                "Updated Backup Job",
+                "Updated description",
+                "0 0 * * *",
+                "updated_backup.exe",
+                5);
+
+            // Act
+            var response = await Client.PutAsJsonAsync($"/api/v1/tasks/{taskId}", updateRequest);
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+        [Fact]
+        public async Task DeleteTask_Should_Return_200()
+        {
+            // Arrange
+            var token = await GetAuthTokenAsync();
+
+            Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var createRequest = new CreateTaskCommand(
+                        "Backup Job",
+                        "Daily backup task",
+                        "0 * * * *",
+                        "backup.exe",
+                        3);
+
+            var createResponse = await Client.PostAsJsonAsync("/api/v1/tasks", createRequest);
+
+            createResponse.EnsureSuccessStatusCode();
+
+            var taskId = await createResponse.Content.ReadFromJsonAsync<Guid>();
+
+            // Act
+            var response = await Client.DeleteAsync($"/api/v1/tasks/{taskId}");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+    }
+}
