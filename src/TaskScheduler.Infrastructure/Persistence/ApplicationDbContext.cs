@@ -4,6 +4,7 @@ using TaskScheduler.Domain.Common;
 using TaskScheduler.Domain.Entities;
 using TaskScheduler.Domain.ValueObjects;
 using TaskScheduler.Application.Interfaces;
+using TaskScheduler.Application.Common.EventNotifications;
 namespace TaskScheduler.Infrastructure.Persistence
 {
     public class ApplicationDbContext : DbContext, IUnitOfWork
@@ -47,8 +48,20 @@ namespace TaskScheduler.Infrastructure.Persistence
 
             foreach (var domainEvent in domainEvents)
             {
-                await _publisher.Publish(domainEvent);
+                var notification = CreateDomainEventNotification(domainEvent);
+
+                await _publisher.Publish(notification);
             }
+        }
+        
+        private static INotification CreateDomainEventNotification(IDomainEvent domainEvent)
+        {
+            var notificationType = typeof(DomainEventNotification<>).MakeGenericType(domainEvent.GetType());
+
+            return (INotification)
+                Activator.CreateInstance(
+                    notificationType,
+                    domainEvent)!;
         }
     }
 }
