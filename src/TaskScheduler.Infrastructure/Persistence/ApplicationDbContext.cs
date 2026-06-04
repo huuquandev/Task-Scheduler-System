@@ -43,8 +43,7 @@ namespace TaskScheduler.Infrastructure.Persistence
                 .SelectMany(x => x.DomainEvents)
                 .ToList();
 
-            entities.ToList()
-                .ForEach(x => x.ClearDomainEvents());
+            entities.ToList().ForEach(x => x.ClearDomainEvents());
 
             foreach (var domainEvent in domainEvents)
             {
