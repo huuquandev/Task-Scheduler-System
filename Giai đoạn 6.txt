@@ -1,0 +1,76 @@
+Các bước triển khai tiếp theo
+
+  Dự án đã hoàn thành 4 giai đoạn đầu. Phần còn lại là hoàn thiện và làm vững chắc. Tôi chia thành 3 nhóm:
+
+  ---
+  Nhóm A — Kiểm tra & chạy thực tế (Ưu tiên cao nhất)
+
+  Bước 1: Chạy toàn bộ tests để biết tình trạng thực tế
+
+  dotnet test Task-scheduler-system.sln --logger "console;verbosity=detailed"
+
+  Kết quả sẽ cho thấy file nào còn rỗng/failing. Đây là việc đầu tiên cần làm vì bạn đã có nhiều file test nhưng chưa biết nội dung thực tế bên trong.
+
+  Bước 2: Chạy API và test thủ công end-to-end
+
+  docker-compose up -d   # khởi động PostgreSQL
+  dotnet run --project src/TaskScheduler.Api/TaskScheduler.Api.csproj
+
+  Vào http://localhost:5000/swagger và test flow:
+  1. POST /api/v1/auth/register → tạo user
+  2. POST /api/v1/auth/login → lấy JWT token
+  3. Click Authorize trong Swagger, paste token
+  4. POST /api/v1/tasks → tạo task với cron hợp lệ (ví dụ 0 * * * *)
+  5. POST /api/v1/tasks/{id}/activate → kích hoạt
+  6. Vào /hangfire xem job đã được đăng ký chưa
+
+  ---
+  Nhóm B — Hoàn thiện test coverage (Ưu tiên trung bình)
+
+  Dựa trên file list, tôi thấy có các file test cho Application và Infrastructure đã được tạo. Tuy nhiên theo phân tích giai đoạn 5, nhiều file khả năng còn rỗng hoặc thiếu cases.
+
+  Thứ tự làm:
+
+  1. Fix DeleteTaskCommandHandlerTests — bug không await handler (test luôn pass dù không test gì)
+  2. Hoàn thiện PauseTaskCommandHandlerTests — 4 test cases theo pattern của UpdateTaskCommandHandlerTests
+  3. ValidationBehaviorTests — 3 scenarios: valid/invalid/no-validator
+  4. LoginCommandHandlerTests + RegisterCommandHandlerTests — mock IUserRepository + ITokenService
+  5. DbContextFactory (SQLite) — nền tảng cho Infrastructure tests
+  6. TaskRepositoryTests — 7 cases CRUD + pagination + soft delete
+
+  ---
+  Nhóm C — Tính năng nâng cao (Ưu tiên thấp, làm sau khi A+B xong)
+
+  C1: Serilog Structured Logging
+  - Thay Console.WriteLine bằng Serilog sink to file + console
+  - Thêm package Serilog.AspNetCore, Serilog.Sinks.File
+  - Config trong Program.cs và appsettings.json
+
+  C2: Rate Limiting cho /trigger endpoint
+  - .NET 8+ có built-in AddRateLimiter
+  - Giới hạn /trigger tối đa N lần/phút per user
+
+  C3: Email/Webhook Notification khi task fail
+  - IEmailNotificationService interface đã plan trong phân tích
+  - Handler lắng nghe TaskFailedEvent
+
+  C4: API Versioning chính thức
+  - Hiện tại route có /v1/ nhưng chưa dùng Asp.Versioning package
+  - Cần setup nếu muốn hỗ trợ v2 sau này
+
+  C5: ExecuteCommand thực tế
+  - TaskExecutionService.ExecuteCommand() hiện là stub (Console.WriteLine)
+  - Cần implement chạy lệnh shell thực tế: Process.Start() với timeout
+
+  ---
+  Gợi ý bắt đầu ngay
+
+  Làm ngay bây giờ — chạy 2 lệnh này để biết thực trạng:
+
+  # 1. Xem bao nhiêu test pass/fail
+  dotnet test Task-scheduler-system.sln
+
+  # 2. Kiểm tra build clean không có warning
+  dotnet build Task-scheduler-system.sln
+
+  Từ kết quả đó, tôi sẽ hướng dẫn bước tiếp theo cụ thể. Bạn muốn bắt đầu từ đâu?
