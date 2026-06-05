@@ -10,6 +10,7 @@ using System.Net.Http.Json;
 using TaskScheduler.Application.Auth.DTOs;
 using TaskScheduler.Application.Auth.Commands.AuthLogin;
 using TaskScheduler.Application.Auth.Commands.AuthRegister;
+using TaskScheduler.Application.Common.Models;
 using Xunit;
 
 namespace TaskScheduler.Api.Tests.Controllers
@@ -39,9 +40,12 @@ namespace TaskScheduler.Api.Tests.Controllers
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-            var userId = await response.Content.ReadFromJsonAsync<Guid>();
+            var userId = await response.Content.ReadFromJsonAsync<ApiResponse<Guid>>();
 
-            userId.Should().NotBe(Guid.Empty);
+            userId.Should().NotBeNull();
+            userId.Code.Should().Be(0);
+            userId.Message.Should().Be("Registration successful.");
+            userId.Data.Should().NotBe(Guid.Empty);
         }
 
         [Fact]
@@ -114,9 +118,9 @@ namespace TaskScheduler.Api.Tests.Controllers
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
-            var authResponse = await response.Content.ReadFromJsonAsync<AuthResponse>();
+            var authResponse = await response.Content.ReadFromJsonAsync<ApiResponse<AuthResponse>>();
             authResponse.Should().NotBeNull();
-            authResponse.Token.Should().NotBeNullOrEmpty();
+            authResponse.Data.Token.Should().NotBeNullOrEmpty();
         }
 
         [Fact]

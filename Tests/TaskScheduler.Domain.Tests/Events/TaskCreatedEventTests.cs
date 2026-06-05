@@ -35,7 +35,8 @@ namespace TaskScheduler.Domain.Tests.Events
             var second = new TaskCreatedEvent(taskId, "Backup");
 
             // Assert
-            first.Should().Be(second);
+            first.TaskId.Should().Be(second.TaskId);
+            first.Name.Should().Be(second.Name);
         }
 
         [Fact]

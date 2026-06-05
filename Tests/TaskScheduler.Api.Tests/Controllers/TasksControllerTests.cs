@@ -13,6 +13,8 @@ using TaskScheduler.Application.Auth.Commands.AuthRegister;
 using TaskScheduler.Application.Tasks.Queries.GetTaskById;
 using TaskScheduler.Application.Tasks.Commands.CreateTask;
 using TaskScheduler.Application.Tasks.Commands.UpdateTask;
+using TaskScheduler.Application.Tasks.Queries.GetTasks;
+using TaskScheduler.Application.Common.Models;
 using Xunit;
 namespace TaskScheduler.Api.Tests.Controllers
 {
@@ -36,9 +38,9 @@ namespace TaskScheduler.Api.Tests.Controllers
 
             loginResponse.EnsureSuccessStatusCode();
 
-            var authResponse = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>();
+            var authResponse = await loginResponse.Content.ReadFromJsonAsync<ApiResponse<AuthResponse>>();
 
-            return authResponse!.Token;
+            return authResponse!.Data.Token;
         }
 
         [Fact]
@@ -87,8 +89,8 @@ namespace TaskScheduler.Api.Tests.Controllers
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-            var taskid = await response.Content.ReadFromJsonAsync<Guid>();
-            taskid.Should().NotBeEmpty();
+            var taskid = await response.Content.ReadFromJsonAsync<ApiResponse<Guid>>();
+            taskid.Data.Should().NotBeEmpty();
         }
 
         [Fact]
@@ -132,19 +134,21 @@ namespace TaskScheduler.Api.Tests.Controllers
 
             createResponse.EnsureSuccessStatusCode();
 
-            var taskId = await createResponse.Content.ReadFromJsonAsync<Guid>();
+            var taskId = await createResponse.Content.ReadFromJsonAsync<ApiResponse<Guid>>();
 
             // Act
-            var response = await Client.GetAsync($"/api/v1/tasks/{taskId}");
+            var response = await Client.GetAsync($"/api/v1/tasks/{taskId.Data}");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-            var task = await response.Content.ReadFromJsonAsync<TaskDto>();
+            var task = await response.Content.ReadFromJsonAsync<ApiResponse<TaskDto>>();
 
             task.Should().NotBeNull();
-            task!.Id.Should().Be(taskId);
-            task.Name.Should().Be(createRequest.Name);
+            task!.Data.Id.Should().Be(taskId.Data);
+            task!.Data.Name.Should().Be(createRequest.Name);
+            task!.Data.Description.Should().Be(createRequest.Description);
+            task!.Data.CronExpression.Should().Be(createRequest.CronExpression);
         }
 
         [Fact]
@@ -183,10 +187,10 @@ namespace TaskScheduler.Api.Tests.Controllers
 
             createResponse.EnsureSuccessStatusCode();
 
-            var taskId = await createResponse.Content.ReadFromJsonAsync<Guid>();
+            var taskId = await createResponse.Content.ReadFromJsonAsync<ApiResponse<Guid>>();
 
             var updateRequest = new UpdateTaskCommand(
-                taskId,
+                taskId.Data,
                 "Updated Backup Job",
                 "Updated description",
                 "0 0 * * *",
@@ -194,7 +198,7 @@ namespace TaskScheduler.Api.Tests.Controllers
                 5);
 
             // Act
-            var response = await Client.PutAsJsonAsync($"/api/v1/tasks/{taskId}", updateRequest);
+            var response = await Client.PutAsJsonAsync($"/api/v1/tasks/{taskId.Data}", updateRequest);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -218,10 +222,10 @@ namespace TaskScheduler.Api.Tests.Controllers
 
             createResponse.EnsureSuccessStatusCode();
 
-            var taskId = await createResponse.Content.ReadFromJsonAsync<Guid>();
+            var taskId = await createResponse.Content.ReadFromJsonAsync<ApiResponse<Guid>>();
 
             // Act
-            var response = await Client.DeleteAsync($"/api/v1/tasks/{taskId}");
+            var response = await Client.DeleteAsync($"/api/v1/tasks/{taskId.Data}");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);

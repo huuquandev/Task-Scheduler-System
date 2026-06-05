@@ -22,6 +22,10 @@ namespace TaskScheduler.Application.Tasks.Queries.GetTaskById
         public async Task<TaskDto> Handle(GetTaskByIdQuery request, CancellationToken cancellationToken)
         {
             var task = await _repo.GetByIdAsync(request.Id);
+            if (task == null)
+            {
+                throw new KeyNotFoundException($"Task with ID {request.Id} not found.");
+            }
             return _mapper.Map<TaskDto>(task);
         }
     }

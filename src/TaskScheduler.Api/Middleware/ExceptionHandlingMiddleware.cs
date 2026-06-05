@@ -51,7 +51,11 @@ namespace TaskScheduler.Api.Middleware
                 KeyNotFoundException => ApiResponse<object>.FailureResponse(
                     exception.Message, 
                     StatusCodes.Status404NotFound),
-                
+
+                UnauthorizedAccessException => ApiResponse<object>.FailureResponse(
+                    exception.Message,
+                    StatusCodes.Status401Unauthorized),
+                    
                 // Default: 500 Internal Server Error
                 _ => ApiResponse<object>.FailureResponse(
                     "An internal server error occurred", 

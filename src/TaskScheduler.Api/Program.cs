@@ -54,9 +54,10 @@ builder.Services.AddMediatR(cfg =>
 });
 
 // DB
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
-);
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+}
 
 // DI
 builder.Services.AddScoped<ITaskRepository, TaskRepository>();
@@ -84,16 +85,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
           };
       });
      
-// Hangfire
-builder.Services.AddHangfire(config =>
-{
-    config.UsePostgreSqlStorage(options =>
-    {
-        options.UseNpgsqlConnection(builder.Configuration.GetConnectionString("DefaultConnection"));
-    });
-});
-builder.Services.AddHangfireServer();
-builder.Services.AddScoped<ISchedulerService, HangfireSchedulerService>();
 
 builder.Services.AddCors(options =>
 {
@@ -107,6 +98,29 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+// Hangfire
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Services.AddHangfire(config =>
+    {
+        config.UsePostgreSqlStorage(options =>
+        {
+            options.UseNpgsqlConnection(builder.Configuration.GetConnectionString("DefaultConnection"));
+        });
+    });
+
+    builder.Services.AddHangfireServer();
+
+    builder.Services.AddScoped<ISchedulerService, HangfireSchedulerService>();
+    app.UseHangfireDashboard("/hangfire", new DashboardOptions
+    {
+        Authorization = new[]
+        {
+            new HangfireAuthorizationFilter()
+        }
+    });
+}
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
@@ -122,13 +136,6 @@ app.UseCors("AllowAll");
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseHangfireDashboard("/hangfire", new DashboardOptions
-{
-    Authorization = new[]
-    {
-        new HangfireAuthorizationFilter()
-    }
-});
 
 app.MapControllers();
 

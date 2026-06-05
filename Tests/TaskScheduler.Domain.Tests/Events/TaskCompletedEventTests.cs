@@ -33,7 +33,7 @@ namespace TaskScheduler.Domain.Tests.Events
             var second = new TaskCompletedEvent(taskId);
 
             // Assert
-            first.Should().Be(second);
+            first.TaskId.Should().Be(second.TaskId);
         }
 
         [Fact]

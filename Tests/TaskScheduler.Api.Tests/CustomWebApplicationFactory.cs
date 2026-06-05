@@ -7,6 +7,9 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.Hosting;
 using TaskScheduler.Application.Interfaces;
 using TaskScheduler.Infrastructure.Persistence;
 using Moq;
@@ -25,18 +28,10 @@ namespace TaskScheduler.Api.Tests
 
             builder.ConfigureServices(services =>
             {
-                // Remove DbContext current (PostgreSQL)
-                var dbContextDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<ApplicationDbContext>));
-
-                if (dbContextDescriptor != null)
-                {
-                    services.Remove(dbContextDescriptor);
-                }
-
-                // SQLite InMemory
+                services.RemoveAll<ApplicationDbContext>();
+                services.RemoveAll<DbContextOptions<ApplicationDbContext>>();
 
                 _connection = new SqliteConnection("DataSource=:memory:");
-
                 _connection.Open();
 
                 services.AddDbContext<ApplicationDbContext>(options =>
@@ -44,30 +39,25 @@ namespace TaskScheduler.Api.Tests
                     options.UseSqlite(_connection);
                 });
 
-                // Remove Hangfire Scheduler
-
-                var schedulerDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(ISchedulerService));
-
-                if (schedulerDescriptor != null)
-                {
-                    services.Remove(schedulerDescriptor);
-                }
+                services.RemoveAll<ISchedulerService>();
 
                 services.AddSingleton(SchedulerServiceMock.Object);
-
-                // Build ServiceProvider
-
-                var sp = services.BuildServiceProvider();
-
-                using var scope = sp.CreateScope();
-
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-                db.Database.EnsureDeleted();
-                db.Database.EnsureCreated();
             });
         }
 
+        protected override IHost CreateHost(IHostBuilder builder)
+        {
+            var host = base.CreateHost(builder);
+
+            using var scope = host.Services.CreateScope();
+            
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            db.Database.EnsureDeleted();
+            db.Database.EnsureCreated();
+
+            return host;
+        }
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);
