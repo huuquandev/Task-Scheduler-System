@@ -97,8 +97,6 @@ builder.Services.AddCors(options =>
     });
 });
 
-var app = builder.Build();
-
 // Hangfire
 if (!builder.Environment.IsEnvironment("Testing"))
 {
@@ -106,13 +104,20 @@ if (!builder.Environment.IsEnvironment("Testing"))
     {
         config.UsePostgreSqlStorage(options =>
         {
-            options.UseNpgsqlConnection(builder.Configuration.GetConnectionString("DefaultConnection"));
+            options.UseNpgsqlConnection(
+                builder.Configuration.GetConnectionString("DefaultConnection"));
         });
     });
 
     builder.Services.AddHangfireServer();
-
     builder.Services.AddScoped<ISchedulerService, HangfireSchedulerService>();
+
+}
+
+var app = builder.Build();
+
+if (!builder.Environment.IsEnvironment("Testing"))
+{
     app.UseHangfireDashboard("/hangfire", new DashboardOptions
     {
         Authorization = new[]
