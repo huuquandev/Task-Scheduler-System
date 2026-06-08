@@ -12,8 +12,9 @@ namespace TaskScheduler.Api.Authorization
         {
             var httpContext = context.GetHttpContext();
 
-            // DEV ONLY
-            return httpContext.User.Identity?.IsAuthenticated ?? false;
+            var ip = httpContext.Connection.RemoteIpAddress;
+
+            return ip?.ToString() == "127.0.0.1" || ip?.ToString() == "::1";
         }
     }
 }
