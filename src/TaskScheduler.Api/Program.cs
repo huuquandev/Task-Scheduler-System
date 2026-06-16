@@ -22,6 +22,14 @@ using TaskScheduler.Api.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Serilog
+builder.Host.UseSerilog(
+    (ctx, config) =>
+    {
+        config.ReadFrom.Configuration(ctx.Configuration);
+    }
+);
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
@@ -66,9 +74,13 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<ITaskExecutionService, TaskExecutionService>();
 builder.Services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ApplicationDbContext>());
+
 builder.Services.AddValidatorsFromAssemblyContaining<CreateTaskCommandValidator>();
+builder.Services.AddTransient(typeof(IPipelineBehavior<,>),typeof(LoggingBehavior<,>));
 builder.Services.AddTransient(typeof(IPipelineBehavior<,>),typeof(ValidationBehavior<,>));
 builder.Services.AddAutoMapper(typeof(TaskMappingProfile).Assembly);
+
+// Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
       .AddJwtBearer(options =>
       {
@@ -84,8 +96,18 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                   Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Secret"]!))
           };
       });
-     
 
+// OpenTelemetry
+builder.Services.AddOpenTelemetry().WithTracing(tracing =>
+    {
+        tracing.AddSource(Telemetry.ServiceName)
+               .AddAspNetCoreInstrumentation()
+               .AddHttpClientInstrumentation()
+               .AddConsoleExporter();
+    }
+);     
+
+// CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -127,6 +149,7 @@ if (!builder.Environment.IsEnvironment("Testing"))
     });
 }
 
+app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 // Các middleware khác
@@ -138,12 +161,12 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
+app.UseSerilogRequestLogging();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-
 app.Run();
 
 public partial class Program
