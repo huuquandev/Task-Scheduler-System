@@ -9,7 +9,7 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using TaskScheduler.Application.Common.Telemetry;
 using TaskScheduler.Application.Interfaces;
-
+using Microsoft.AspNetCore.Http;
 namespace TaskScheduler.Application.Common.Behaviors
 {
     public class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse> where TRequest : notnull
@@ -51,7 +51,11 @@ namespace TaskScheduler.Application.Common.Behaviors
                 activity?.SetStatus(ActivityStatusCode.Ok);
 
                 _logger.LogInformation("Handled request {RequestName} in {ElapsedMilliseconds}ms. Correlation ID: {CorrelationId}", requestName, stopwatch.ElapsedMilliseconds, correlationId);
-
+                // Slow Request Warning
+                if (stopwatch.ElapsedMilliseconds > 1000)
+                {
+                    _logger.LogWarning("Slow request detected: {RequestName} took {ElapsedMilliseconds}ms. Correlation ID: {CorrelationId}", requestName, stopwatch.ElapsedMilliseconds, correlationId);
+                }
                 return response;
             }
             catch (Exception ex)

@@ -19,7 +19,10 @@ using TaskScheduler.Application.Tasks.Commands.UpdateTask;
 using TaskScheduler.Application.Common.Mappings;
 using TaskScheduler.Api.Middleware;
 using TaskScheduler.Api.Authorization;
-
+using Serilog;
+using TaskScheduler.Application.Common.Telemetry;
+using OpenTelemetry.Trace;
+using OpenTelemetry.Resources;
 var builder = WebApplication.CreateBuilder(args);
 
 // Serilog
@@ -31,6 +34,7 @@ builder.Host.UseSerilog(
 );
 
 builder.Services.AddControllers();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddEndpointsApiExplorer();
 
 // Swagger with annotations
@@ -100,12 +104,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 // OpenTelemetry
 builder.Services.AddOpenTelemetry().WithTracing(tracing =>
     {
-        tracing.AddSource(Telemetry.ServiceName)
+        tracing.SetResourceBuilder(ResourceBuilder.CreateDefault()
+               .AddService(TelemetryConfig.ServiceName))
+               .AddSource(TelemetryConfig.ServiceName)
                .AddAspNetCoreInstrumentation()
                .AddHttpClientInstrumentation()
                .AddConsoleExporter();
-    }
-);     
+});   
 
 // CORS
 builder.Services.AddCors(options =>
@@ -158,7 +163,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
+builder.Services.AddHttpContextAccessor();
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
 app.UseSerilogRequestLogging();
