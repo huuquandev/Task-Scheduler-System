@@ -10,10 +10,12 @@ namespace TaskScheduler.Application.Tasks.Commands.ActiveTask
     public class ActiveTaskHandler : IRequestHandler<ActiveTaskCommand, Unit>
     {
         private readonly ITaskRepository _repo;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly ISchedulerService _scheduler;
-        public ActiveTaskHandler(ITaskRepository repo, ISchedulerService scheduler)
+        public ResumeTaskHandler(ITaskRepository repo, IUnitOfWork unitOfWork, ISchedulerService scheduler)
         {
             _repo = repo;
+            _unitOfWork = unitOfWork;
             _scheduler = scheduler;
         }
 
@@ -31,8 +33,12 @@ namespace TaskScheduler.Application.Tasks.Commands.ActiveTask
 
             task.MarkAsActive();
             await _repo.UpdateAsync(task);
+
             // execution
             await _scheduler.ScheduleTaskAsync(task);
+
+            // Save change to DB
+            await _unitOfWork.SaveChangesAsync();
 
             return Unit.Value;
         }

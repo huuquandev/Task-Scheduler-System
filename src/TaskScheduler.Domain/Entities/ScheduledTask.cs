@@ -19,25 +19,26 @@ namespace TaskScheduler.Domain.Entities
 
         public string Description { get; private set; } // Des task
 
-        public CronExpression CronExpression{ get; private set; } // Biểu thức cron xác định lịch chạy.
+        public CronExpression CronExpression{ get; private set; } // The cron expression defines the execution schedule.
 
-        public string Command { get; private set; } // Lệnh hoặc action task sẽ thực thi.
+        public string Command { get; private set; } // The command or action task will be executed.
 
-        public ScheduledTaskStatus Status { get; private set; } // Trạng thái hiện tại của task.
+        public ScheduledTaskStatus Status { get; private set; } // The current status of the task.
 
-        public DateTime? LastRunAt { get; private set; } // Task chạy lần gần nhất.
+        public DateTime? LastRunAt { get; private set; } // The time when the task was last run.
 
-        public DateTime? NextRunAt { get; private set; } // Task chạy lần tiếp theo.
+        public DateTime? NextRunAt { get; private set; } // The time when the task will run next.
 
-        public int RetryCount { get; private set; } // Số lần chạy lại task.
+        public int RetryCount { get; private set; } // The number of times the task has failed and retried.
 
-        public int MaxRetries { get; private set; } // Giới hạn lần chạy lại tối đa.
+        public int MaxRetries { get; private set; } // The maximum number of times the task can be retried.
+        public int RetryCount { get; private set; } // The number of times the task has failed and retried.
 
         public bool IsDeleted { get; private set; } // Soft delete flag.
 
-        public DateTime CreatedAt { get; private set; } // Ngày tạo task
+        public DateTime CreatedAt { get; private set; } // The time when the task was created.
 
-        public DateTime UpdatedAt { get; private set; } // Ngày lần cuối update task
+        public DateTime UpdatedAt { get; private set; } // The time when the task was last updated.
         private ScheduledTask()
         {
             // EF Core cần
@@ -131,6 +132,15 @@ namespace TaskScheduler.Domain.Entities
             MaxRetries = maxRetries;
 
             UpdatedAt = DateTime.UtcNow;
+        }
+
+        public void IncreaseRetryCount()
+        {
+            RetryCount++;
+        }
+        public void ResetRetryCount()
+        {
+            RetryCount = 0;
         }
     }
 }

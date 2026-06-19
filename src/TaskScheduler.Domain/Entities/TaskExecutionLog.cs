@@ -24,10 +24,6 @@ namespace TaskScheduler.Domain.Entities
 
         public long? DurationMs { get; private set; }
 
-        public string? StandardOutput { get; private set; }
-        
-        public string? StandardError { get; private set; }
-
         public int? ExitCode { get; private set; }
 
         private TaskExecutionLog()

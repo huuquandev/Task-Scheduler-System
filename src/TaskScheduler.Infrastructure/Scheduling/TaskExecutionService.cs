@@ -5,7 +5,8 @@ using System.Threading.Tasks;
 using Hangfire;
 using TaskScheduler.Application.Interfaces;
 using TaskScheduler.Domain.Entities;
-using TaskScheduler.application.Common.Models;
+using TaskScheduler.Application.Common.Models;
+using Microsoft.Extensions.Configuration;
 namespace TaskScheduler.Infrastructure.Scheduling
 {
     public class TaskExecutionService : ITaskExecutionService
@@ -14,15 +15,18 @@ namespace TaskScheduler.Infrastructure.Scheduling
         private readonly ITaskExecutionLogRepository _logrepo;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<TaskExecutionService> _logger;
+        private readonly IConfiguration _configuration;
 
-        public TaskExecutionService(ITaskRepository repo, ITaskExecutionLogRepository logrepo, IUnitOfWork unitOfWork, ILogger<TaskExecutionService> logger)
+        public TaskExecutionService(ITaskRepository repo, ITaskExecutionLogRepository logrepo, IUnitOfWork unitOfWork, ILogger<TaskExecutionService> logger, IConfiguration configuration)
         {
             _repo = repo;
             _logrepo = logrepo;
             _unitOfWork = unitOfWork;
             _logger = logger;
+            _configuration = configuration;
         }
 
+        // Execute the task by its ID, handling the execution flow, logging, and retry logic.
         public async Task ExecuteTask(Guid taskId)
         {
             var task = await _repo.GetByIdAsync(taskId);
@@ -47,10 +51,19 @@ namespace TaskScheduler.Infrastructure.Scheduling
 
                 await _unitOfWork.SaveChangesAsync();
 
-                _logger.LogInformation("Starting execution of task {TaskId} ({TaskName})", task.Id, task.Name);
+                _logger.LogInformation("Starting execution of task {TaskId} ({TaskName}), RetryCount={RetryCount}", task.Id, task.Name, task.RetryCount);
 
                 // Execute command
                 var result = await ExecuteCommand(task);
+
+                // Update log with execution result
+                log.errorMessage = result.StandardError;
+                log.ExitCode = result.ExitCode;
+                log.DurationMs = (long)result.Duration.TotalMilliseconds;
+
+                var output = result.StandardOutput ?? string.Empty;
+
+                _logger.LogInformation("Task {TaskId} output: {Output}", task.Id, output.Length > 1000 ? output[..1000] : output);
 
                 if (!result.Success)
                 {
@@ -62,16 +75,29 @@ namespace TaskScheduler.Infrastructure.Scheduling
                 task.MarkAsActive();
 
                 task.UpdateNextRunTime();
+                task.ResetRetryCount();
 
-                _logger.LogInformation("Task {TaskId} completed successfully", task.Id);
+               _logger.LogInformation("Task {TaskId} completed successfully. Duration={Duration}ms", task.Id, result.Duration.TotalMilliseconds);
             }
             catch (Exception ex)
             {
+
                 _logger.LogError(ex, "Task {TaskId} execution failed", task.Id);
                 
                 log.MarkAsFailed(ex.Message);
+                                         
+                task.IncreaseRetryCount();
 
-                task.MarkAsFailed(ex.Message);
+                if(task.RetryCount <= task.MaxRetries)
+                {
+                    task.MarkAsActive();
+                    ScheduleRetry(task);
+                }
+                else
+                {
+                    _logger.LogError("Task {TaskId} exhausted all retries", task.Id);
+                    task.MarkAsFailed(ex.Message);
+                }
             }
             finally
             {
@@ -81,6 +107,7 @@ namespace TaskScheduler.Infrastructure.Scheduling
             }
         }
 
+        // Trigger the task to run immediately, bypassing the scheduled time.
         public Task TriggerNow(Guid taskId)
         {
             BackgroundJob.Enqueue<ITaskExecutionService>(
@@ -90,10 +117,17 @@ namespace TaskScheduler.Infrastructure.Scheduling
             return Task.CompletedTask;
         }
 
+        // Execute the command specified in the task and capture the output, error, exit code, and execution duration.
         private async Task<CommandExecutionResult> ExecuteCommand(ScheduledTask task)
         {
-            const int TimeoutSeconds = 300; // 5 minutes
+            if (string.IsNullOrWhiteSpace(task.Command))
+            {
+                throw new InvalidOperationException(
+                    $"Task {task.Id} has empty command.");
+            }
 
+            var timeoutSeconds = _configuration.GetValue<int>("TaskExecution:TimeoutSeconds", 300);
+            
             var stopwatch = Stopwatch.StartNew();
 
             using var process = new Process();
@@ -119,7 +153,7 @@ namespace TaskScheduler.Infrastructure.Scheduling
 
             var errorTask = process.StandardError.ReadToEndAsync();
 
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(TimeoutSeconds));
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
 
             try
             {
@@ -139,7 +173,7 @@ namespace TaskScheduler.Infrastructure.Scheduling
                     // ignore
                 }
 
-                throw new TimeoutException($"Command execution exceeded {TimeoutSeconds} seconds.");
+                throw new TimeoutException($"Command execution exceeded {timeoutSeconds} seconds.");
             }
 
             stopwatch.Stop();
@@ -157,5 +191,25 @@ namespace TaskScheduler.Infrastructure.Scheduling
                 Duration = stopwatch.Elapsed
             };
         }
+
+        // Calculate the delay before the next retry based on the retry count, using an exponential backoff strategy.
+        private TimeSpan GetRetryDelay(int retryCount)
+        {
+            return TimeSpan.FromSeconds(Math.Min(300, Math.Pow(2, retryCount) * 30));
+        }
+
+        // Schedule the task for retry by increasing the retry count and using Hangfire to schedule the next execution after a calculated delay.
+        private void ScheduleRetry(ScheduledTask task)
+        {
+            var delay = GetRetryDelay(task.RetryCount);
+
+            BackgroundJob.Schedule<ITaskExecutionService>(
+                x => x.ExecuteTask(task.Id),
+                delay
+            );
+
+            _logger.LogWarning("Task {TaskId} scheduled retry attempt {RetryCount}/{MaxRetries} after {Delay}", task.Id, task.RetryCount, task.MaxRetries, delay);
+        }
+
     }
 }
