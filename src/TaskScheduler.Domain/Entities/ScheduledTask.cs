@@ -32,8 +32,6 @@ namespace TaskScheduler.Domain.Entities
         public int RetryCount { get; private set; } // The number of times the task has failed and retried.
 
         public int MaxRetries { get; private set; } // The maximum number of times the task can be retried.
-        public int RetryCount { get; private set; } // The number of times the task has failed and retried.
-
         public bool IsDeleted { get; private set; } // Soft delete flag.
 
         public DateTime CreatedAt { get; private set; } // The time when the task was created.

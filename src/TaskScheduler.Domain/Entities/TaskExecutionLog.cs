@@ -93,5 +93,12 @@ namespace TaskScheduler.Domain.Entities
         {
             return (long)(DateTime.UtcNow - StartedAt).TotalMilliseconds;
         }
+
+        public void SetExecutionDetails(string? errorMessage, long? durationMs, int? exitCode)
+        {
+            ErrorMessage = errorMessage;
+            DurationMs = durationMs;
+            ExitCode = exitCode;
+        }
     }
 }

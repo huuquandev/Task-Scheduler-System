@@ -7,6 +7,8 @@ using TaskScheduler.Application.Interfaces;
 using TaskScheduler.Domain.Entities;
 using TaskScheduler.Application.Common.Models;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 namespace TaskScheduler.Infrastructure.Scheduling
 {
     public class TaskExecutionService : ITaskExecutionService
@@ -57,9 +59,7 @@ namespace TaskScheduler.Infrastructure.Scheduling
                 var result = await ExecuteCommand(task);
 
                 // Update log with execution result
-                log.errorMessage = result.StandardError;
-                log.ExitCode = result.ExitCode;
-                log.DurationMs = (long)result.Duration.TotalMilliseconds;
+                log.SetExecutionDetails(result.StandardError, (long)result.Duration.TotalMilliseconds, result.ExitCode);
 
                 var output = result.StandardOutput ?? string.Empty;
 

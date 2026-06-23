@@ -12,7 +12,7 @@ namespace TaskScheduler.Application.Tasks.Commands.ActiveTask
         private readonly ITaskRepository _repo;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ISchedulerService _scheduler;
-        public ResumeTaskHandler(ITaskRepository repo, IUnitOfWork unitOfWork, ISchedulerService scheduler)
+        public ActiveTaskHandler(ITaskRepository repo, IUnitOfWork unitOfWork, ISchedulerService scheduler)
         {
             _repo = repo;
             _unitOfWork = unitOfWork;

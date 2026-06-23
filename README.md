@@ -280,15 +280,19 @@ docker-compose up -d
 
 ### Swagger UI
 
-_Add screenshot here_
+![Swagger](Docs/Images/swagger.png)
 
 ### Hangfire Dashboard
 
-_Add screenshot here_
+![Hangfire](Docs/Images/Hangfire.png)
 
 ### Architecture Diagram
 
-_Add screenshot here_
+![Architecture](Docs/Images/architecture.png)
+
+### DataBase Diagram
+
+![DataBase](Docs/Images/database.png)
 
 ---
 
@@ -299,7 +303,7 @@ _Add screenshot here_
 Backend .NET Developer
 
 - GitHub: https://github.com/huuquandev
-- LinkedIn: https://linkedin.com/in/your-linkedin
+- LinkedIn: https://www.linkedin.com/in/ph%E1%BA%A1m-h%E1%BB%AFu-qu%C3%A2n-291191419/
 
 ---
 
