@@ -284,7 +284,7 @@ docker-compose up -d
 
 ### Hangfire Dashboard
 
-![Hangfire](Docs/Images/Hangfire.png)
+![Hangfire](Docs/Images/hangfire.png)
 
 ### Architecture Diagram
 
