@@ -77,7 +77,7 @@ The project follows **Clean Architecture** principles.
 └─────────┬─────────┘
           │
 ┌─────────▼─────────┐
-│    SQL Server     │
+│    PostgreSQL     │
 └───────────────────┘
 ```
 
@@ -99,10 +99,11 @@ The project follows **Clean Architecture** principles.
 - MediatR
 - Repository Pattern
 - Unit of Work
+- Dependency Injection
 
 ### Database
 
-- SQL Server
+- PostgreSQL
 
 ### Background Processing
 
@@ -115,7 +116,7 @@ The project follows **Clean Architecture** principles.
 ### Security
 
 - JWT Authentication
-- Authorization
+- Role-based Authorization
 
 ### DevOps & Tools
 
@@ -123,28 +124,58 @@ The project follows **Clean Architecture** principles.
 - Swagger/OpenAPI
 - Git
 
+### Testing
+
+- xUnit
+- FluentAssertions
+- Moq
+- Bogus
+- Testcontainers
 ---
 
 ## 📂 Project Structure
 
 ```text
-src
+src/
 ├── TaskScheduler.API
 ├── TaskScheduler.Application
 ├── TaskScheduler.Domain
-├── TaskScheduler.Infrastructure
-└── TaskScheduler.Shared
+└── TaskScheduler.Infrastructure
+
+tests/
+├── TaskScheduler.Domain.Tests
+├── TaskScheduler.Application.Tests
+├── TaskScheduler.Infrastructure.Tests
+└── TaskScheduler.API.Tests
 ```
 
-### Layer Responsibilities
+## 🏗️ Layer Responsibilities
 
 | Layer | Responsibility |
 |--------|---------------|
-| API | Expose REST APIs |
-| Application | Use cases, CQRS handlers, DTOs |
-| Domain | Business logic and entities |
-| Infrastructure | Database, Redis, Hangfire, external services |
-| Shared | Common utilities and shared components |
+| API | Expose REST APIs and handle HTTP requests |
+| Application | Use cases, CQRS handlers, DTOs, validations |
+| Domain | Business rules, entities, domain services |
+| Infrastructure | Database access, Redis, Hangfire, external integrations |
+
+## 🧪 Testing Strategy
+
+The project includes automated tests to ensure business logic correctness, reliability, and maintainability.
+
+### Test Coverage
+
+- Unit tests for Domain entities and business rules.
+- Unit tests for CQRS Command and Query Handlers.
+- Validation tests for commands and requests.
+- Repository and Infrastructure tests.
+- API endpoint tests.
+- Background job execution tests.
+
+### Run Tests
+
+```bash
+dotnet test
+```
 
 ---
 
@@ -171,7 +202,7 @@ Domain Validation
 Repository
    │
    ▼
-SQL Server
+PostgreSQL
 ```
 
 ---
