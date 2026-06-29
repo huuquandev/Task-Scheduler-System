@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(dotnet list *)"
+      "Bash(dotnet list *)",
+      "Bash(dir D:\\\\Project\\\\Task-Scheduler-System *)"
     ]
   }
 }
