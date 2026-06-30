@@ -23,14 +23,14 @@ namespace TaskScheduler.Application.Tasks.Commands.TriggerTask
             var task = await _repo.GetByIdAsync(request.Id);
 
             if(task == null)
-                throw new ArgumentException("Task not found.");
+                throw new KeyNotFoundException("Task not found.");
 
             if(task.IsDeleted)
                 throw new InvalidOperationException("Task deleted");
 
             if(task.Status != ScheduledTaskStatus.Active && task.Status != ScheduledTaskStatus.Failed)
             {
-                throw new InvalidOperationException("Task cannot be triggered.");
+                throw new InvalidOperationException("Only Active or Failed tasks can be triggered manually.");
             }
             
             // Execute immediately

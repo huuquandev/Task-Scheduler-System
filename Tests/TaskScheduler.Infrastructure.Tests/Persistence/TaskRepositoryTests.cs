@@ -68,7 +68,7 @@ namespace TaskScheduler.Infrastructure.Tests.Persistence
 
                 await repository.AddAsync(task);
 
-                await context.SaveChangesAsync();
+                await seedContext.SaveChangesAsync();
             }
 
             // DbContext #2 → assert/query DB 
@@ -88,7 +88,7 @@ namespace TaskScheduler.Infrastructure.Tests.Persistence
 
                 result.Description.Should().Be("Daily backup");
 
-                result.ExecutablePath.Should().Be("backup.exe");
+                result.Command.Should().Be("backup.exe");
             }
         }
 
@@ -129,7 +129,7 @@ namespace TaskScheduler.Infrastructure.Tests.Persistence
 
                 await repository.AddAsync(task);
 
-                await context.SaveChangesAsync();
+                await seedContext.SaveChangesAsync();
             }
 
             // DbContext #2 → assert/query DB 
@@ -164,7 +164,7 @@ namespace TaskScheduler.Infrastructure.Tests.Persistence
                 await repository.AddAsync(task);
 
                 await seedContext.SaveChangesAsync();
-                task.MarkAsFailed();
+                task.MarkAsFailed("Test failure reason");
 
                 await repository.UpdateAsync(task);
 

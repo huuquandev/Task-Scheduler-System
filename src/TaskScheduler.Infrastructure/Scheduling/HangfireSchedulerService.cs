@@ -29,13 +29,7 @@ namespace TaskScheduler.Infrastructure.Scheduling
 
         public Task RescheduleTaskAsync(ScheduledTask task)
         {
-            RecurringJob.AddOrUpdate<TaskJob>(
-                task.Id.ToString(),
-                job => job.Execute(task.Id),
-                task.CronExpression.Value
-            );
-
-            return Task.CompletedTask;
+            return ScheduleTaskAsync(task);   
         }
     }
 }

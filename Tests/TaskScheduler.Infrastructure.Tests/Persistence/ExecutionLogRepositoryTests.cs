@@ -18,12 +18,9 @@ namespace TaskScheduler.Infrastructure.Tests.Persistence
         public async Task AddAsync_Should_Save_ExecutionLog()
         {
             // Arrange
-            var task = new TaskExecutionLog(
-                Guid.NewGuid(),
-                Guid.NewGuid(),
-                DateTime.UtcNow,
-                "Success"
-            );
+            var task = new TaskExecutionLog(Guid.NewGuid());
+
+            task.MarkAsSuccess();
 
             // DbContext #1 → seed/setup
             using (var seedContext = Factory.CreateDbContext())
@@ -44,7 +41,7 @@ namespace TaskScheduler.Infrastructure.Tests.Persistence
                 savedTask.Should().NotBeNull();
 
                 savedTask!.TaskId.Should().Be(task.TaskId);
-                savedTask.ErrorMessage.Should().Be("Success");
+                savedTask.Status.Should().Be(TaskExecutionStatus.Success);
             }
         }
 
@@ -52,21 +49,13 @@ namespace TaskScheduler.Infrastructure.Tests.Persistence
         public async Task GetByTaskIdAsync_Found_Should_Return_List_ExecutionLog()
         {
             // Arrange
-            var taskId = Guid.NewGuid();
+            var task1 = new TaskExecutionLog(Guid.NewGuid());
 
-            var task1 = new TaskExecutionLog(
-                taskId,
-                Guid.NewGuid(),
-                DateTime.UtcNow,
-                "Success"
-            );
+            task1.MarkAsSuccess();
 
-            var task2 = new TaskExecutionLog(
-                taskId,
-                Guid.NewGuid(),
-                DateTime.UtcNow,
-                "Failed"
-            );
+            var task2 = new TaskExecutionLog(Guid.NewGuid());
+
+            task2.MarkAsFailed("Failed");
 
             // DbContext #1 → seed/setup
             using (var seedContext = Factory.CreateDbContext())
@@ -96,21 +85,13 @@ namespace TaskScheduler.Infrastructure.Tests.Persistence
         public async Task GetAllAsync_Found_Should_Return_List_ExecutionLog()
         {
             // Arrange
-            var taskId = Guid.NewGuid();
+            var task1 = new TaskExecutionLog(Guid.NewGuid());
 
-            var task1 = new TaskExecutionLog(
-                taskId,
-                Guid.NewGuid(),
-                DateTime.UtcNow,
-                "Success"
-            );
+            task1.MarkAsSuccess();
 
-            var task2 = new TaskExecutionLog(
-                taskId,
-                Guid.NewGuid(),
-                DateTime.UtcNow,
-                "Failed"
-            );
+            var task2 = new TaskExecutionLog(Guid.NewGuid());
+
+            task2.MarkAsFailed("Failed");
 
             var task3 = new TaskExecutionLog(
                 taskId,
@@ -144,16 +125,12 @@ namespace TaskScheduler.Infrastructure.Tests.Persistence
         }
 
         [Fact]
-        public async Task GetByTaskIdAsync_Found_Should_Return_List_ExecutionLog()
+        public async Task GetDetailsAsync_Found_Should_Return_ExecutionLog()
         {
             // Arrange
-            var logId = Guid.NewGuid();
-            var task = new TaskExecutionLog(
-                logId,
-                Guid.NewGuid(),
-                DateTime.UtcNow,
-                "Success"
-            );
+            var task = new TaskExecutionLog(Guid.NewGuid());
+
+            task.MarkAsSuccess();
 
             // DbContext #1 → seed/setup
             using (var seedContext = Factory.CreateDbContext())
@@ -176,7 +153,7 @@ namespace TaskScheduler.Infrastructure.Tests.Persistence
                 logs.Should().NotBeNull();
 
                 logs!.TaskId.Should().Be(task.TaskId);
-                logs.ErrorMessage.Should().Be("Success");
+                logs.Status.Should().Be(TaskExecutionStatus.Success);
             }
         }
     }

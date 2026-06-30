@@ -11,7 +11,7 @@ namespace TaskScheduler.Infrastructure.Tests.Common
     public class DbContextFactory : IDisposable
     {
         private readonly SqliteConnection _connection;
-        private readonly DbContextOptions<AppDbContext> _options;
+        private readonly DbContextOptions<ApplicationDbContext> _options;
 
         public DbContextFactory()
         {
@@ -19,11 +19,11 @@ namespace TaskScheduler.Infrastructure.Tests.Common
 
             _connection.Open();
 
-            var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            _options = new DbContextOptionsBuilder<ApplicationDbContext>()
                 .UseSqlite(_connection)
                 .Options;
 
-            Context = new ApplicationDbContext(options);
+            Context = new ApplicationDbContext(_options);
 
             Context.Database.EnsureCreated();
         }

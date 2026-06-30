@@ -27,7 +27,7 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.TriggerTask
             var action = () => handler.Handle(command, CancellationToken.None);
 
             // Assert
-            await action.Should().ThrowAsync<ArgumentException>().WithMessage("Task not found.");
+            await action.Should().ThrowAsync<KeyNotFoundException>().WithMessage("Task not found.");
         }
 
         [Fact]
@@ -56,7 +56,7 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.TriggerTask
             var action = () => handler.Handle(command, CancellationToken.None);
 
             // Assert
-            await action.Should().ThrowAsync<ArgumentException>().WithMessage("Task deleted");
+            await action.Should().ThrowAsync<InvalidOperationException>().WithMessage("Task deleted");
         }
 
         [Theory]
@@ -89,7 +89,7 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.TriggerTask
             var action = () => handler.Handle(command, CancellationToken.None);
 
             // Assert
-            await action.Should().ThrowAsync<ArgumentException>().WithMessage("Task cannot be triggered.");
+            await action.Should().ThrowAsync<InvalidOperationException>().WithMessage("Only Active or Failed tasks can be triggered manually.");
         }
 
         [Theory]

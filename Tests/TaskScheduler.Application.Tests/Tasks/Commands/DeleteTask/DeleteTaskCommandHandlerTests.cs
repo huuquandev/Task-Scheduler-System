@@ -40,10 +40,8 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.DeleteTask
                 "This task is deleted",
                 CronExpression.Create("0 0 * * *"),
                 "deleted.exe",
-                3)
-            {
-                IsDeleted = true
-            };
+                3);
+            deletedTask.SoftDelete();
 
             repoMock.Setup(x => x.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync(deletedTask);
 
@@ -133,7 +131,7 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.DeleteTask
             await handler.Handle(command, CancellationToken.None);
 
             // Assert
-            schedulerMock.Verify(x => x.UnscheduleTaskAsync(existingTask), Times.Once);
+            schedulerMock.Verify(x => x.UnscheduleTaskAsync(existingTask.Id), Times.Once);
         }
     }
 }

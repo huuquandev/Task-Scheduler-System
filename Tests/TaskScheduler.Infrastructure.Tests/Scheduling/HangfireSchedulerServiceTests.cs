@@ -24,12 +24,13 @@ namespace TaskScheduler.Infrastructure.Tests.Scheduling
             // Arrange
             var service = new HangfireSchedulerService();
 
-            var task = new ScheduledTask
-            {
-                Id = Guid.NewGuid(),
-                Name = "Backup",
-                CronExpression = "0 * * * *"
-            };
+            var task = new ScheduledTask(
+                "Backup",
+                "Daily backup",
+                "0 * * * *",   
+                "backup.exe",
+                3
+            );
 
             // Act
             await service.ScheduleTaskAsync(task);
@@ -39,7 +40,7 @@ namespace TaskScheduler.Infrastructure.Tests.Scheduling
             var job = jobs.Single(x => x.Id == task.Id.ToString());
 
             // Assert
-            job.Cron.Should().Be(task.CronExpression);
+            job.Cron.Should().Be(task.CronExpression.Value);
         }
 
         [Fact]
@@ -48,12 +49,13 @@ namespace TaskScheduler.Infrastructure.Tests.Scheduling
             // Arrange
             var service = new HangfireSchedulerService();
 
-            var task = new ScheduledTask
-            {
-                Id = Guid.NewGuid(),
-                Name = "Backup",
-                CronExpression = "0 * * * *"
-            };
+            var task = new ScheduledTask(
+                "Backup",
+                "Daily backup",
+                "0 * * * *",   
+                "backup.exe",
+                3
+            );
 
             await service.ScheduleTaskAsync(task);
 

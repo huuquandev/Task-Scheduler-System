@@ -100,7 +100,13 @@ namespace TaskScheduler.Infrastructure.Tests.Services
         public void GenerateJwtToken_Should_Contain_Username_Claim()
         {
             // Arrange
-            var user = "admin";
+            var user = new User
+            {
+                Id = Guid.NewGuid(),
+                Username = "admin",
+                Email = "admin@example.com",
+                IsActive = true
+            };
 
             // Act
             var token = _tokenService.GenerateJwtToken(user);
@@ -110,14 +116,20 @@ namespace TaskScheduler.Infrastructure.Tests.Services
             var jwtToken = handler.ReadJwtToken(token);
 
             // Assert
-            jwtToken.Claims.Should().Contain(claim => claim.Type == "Name" && claim.Value == user);
+            jwtToken.Claims.Should().Contain(c => c.Type == ClaimTypes.Name && c.Value == user.Username);
         }
 
         [Fact]
         public void GenerateJwtToken_Should_Have_Future_Expiration()
         {
             // Arrange
-            var user = "admin";
+            var user = new User
+            {
+                Id = Guid.NewGuid(),
+                Username = "admin",
+                Email = "admin@example.com",
+                IsActive = true
+            };
 
             // Act
             var token = _tokenService.GenerateJwtToken(user);

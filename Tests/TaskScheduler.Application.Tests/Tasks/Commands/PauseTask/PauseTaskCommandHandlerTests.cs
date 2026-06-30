@@ -40,16 +40,14 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.PauseTask
                 "This is a test task",
                 CronExpression.Create("0 0 * * *"),
                 "test.exe",
-                3)
-            {
-                IsDeleted = true
-            };
+                3);
+            existingTask.SoftDelete();
 
             repoMock.Setup(x => x.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync(existingTask);
 
             var command = new PauseTaskCommand(Guid.NewGuid());
 
-            var handler = new PauseTaskCommand(repoMock.Object, Mock.Of<ISchedulerService>());
+            var handler = new PauseTaskHandler(repoMock.Object, Mock.Of<ISchedulerService>());
 
             // Act
             var action = () => handler.Handle(command, CancellationToken.None);
@@ -71,10 +69,17 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.PauseTask
                 "This is a test task",
                 CronExpression.Create("0 0 * * *"),
                 "test.exe",
-                3)
+                3);
+
+            if(status == "Running")
             {
-                Status = status
-            };
+                existingTask.MarkAsRunning();
+            }
+            else if(status == "Completed")
+            {
+                existingTask.MarkAsCompleted();
+            }
+
             repoMock.Setup(x => x.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync(existingTask);
 
             var command = new PauseTaskCommand(Guid.NewGuid());
@@ -97,10 +102,8 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.PauseTask
                 "This is a test task",
                 CronExpression.Create("0 0 * * *"),
                 "test.exe",
-                3)
-            {
-                Status = ScheduledTaskStatus.Active
-            };
+                3);
+            existingTask.MarkAsActive();
             repoMock.Setup(x => x.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync(existingTask);
 
             var command = new PauseTaskCommand(Guid.NewGuid());
@@ -125,10 +128,8 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.PauseTask
                 "This is a test task",
                 CronExpression.Create("0 0 * * *"),
                 "test.exe",
-                3)
-            {
-                Status = ScheduledTaskStatus.Active
-            };
+                3);
+            existingTask.MarkAsActive();
 
             repoMock.Setup(x => x.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync(existingTask);
 
@@ -155,10 +156,8 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.PauseTask
                 "This is a test task",
                 CronExpression.Create("0 0 * * *"),
                 "test.exe",
-                3)
-            {
-                Status = ScheduledTaskStatus.Active
-            };
+                3);
+            existingTask.MarkAsActive();
 
             repoMock.Setup(x => x.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync(existingTask);
 
@@ -170,7 +169,7 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.PauseTask
             await handler.Handle(command, CancellationToken.None);
 
             // Assert
-            schedulerMock.Verify(x => x.UnscheduleTaskAsync(existingTask), Times.Once);
+            schedulerMock.Verify(x => x.UnscheduleTaskAsync(existingTask.Id), Times.Once);
         }
     }
 }

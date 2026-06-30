@@ -130,20 +130,17 @@ namespace TaskScheduler.Infrastructure.Scheduling
             
             var stopwatch = Stopwatch.StartNew();
 
+            bool isWindows = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
+
             using var process = new Process();
 
             process.StartInfo = new ProcessStartInfo
             {
-                FileName = "cmd.exe",
-
-                Arguments = $"/c {task.Command}",
-
+                FileName = isWindows ? "cmd.exe" : "/bin/sh",
+                Arguments = isWindows ? $"/c {task.Command}" : $"-c \"{task.Command}\"",
                 RedirectStandardOutput = true,
-
                 RedirectStandardError = true,
-
                 UseShellExecute = false,
-
                 CreateNoWindow = true
             };
 
