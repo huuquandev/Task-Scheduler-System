@@ -9,9 +9,15 @@ namespace TaskScheduler.Infrastructure.Scheduling
 {
     public class HangfireSchedulerService : ISchedulerService
     {
+        private readonly IRecurringJobManager _recurringJobManager;
+
+        public HangfireSchedulerService(IRecurringJobManager recurringJobManager)
+        {
+            _recurringJobManager = recurringJobManager;
+        }
         public Task ScheduleTaskAsync(ScheduledTask task)
         {
-             RecurringJob.AddOrUpdate<TaskJob>(
+             _recurringJobManager.AddOrUpdate<TaskJob>(
                 task.Id.ToString(),
                 job => job.Execute(task.Id),
                 task.CronExpression.Value
@@ -22,14 +28,12 @@ namespace TaskScheduler.Infrastructure.Scheduling
 
         public Task UnscheduleTaskAsync(Guid taskId)
         {
-            RecurringJob.RemoveIfExists(taskId.ToString());
+            _recurringJobManager.RemoveIfExists(taskId.ToString());
 
             return Task.CompletedTask;
         }
 
         public Task RescheduleTaskAsync(ScheduledTask task)
-        {
-            return ScheduleTaskAsync(task);   
-        }
+        => ScheduleTaskAsync(task);
     }
 }

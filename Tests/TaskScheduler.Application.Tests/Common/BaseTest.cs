@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using AutoMapper;
 using Moq;
 using TaskScheduler.Application.Interfaces;
-using TaskScheduler.Application.Mappings;
+using TaskScheduler.Application.Common.Mappings;
 
 namespace TaskScheduler.Application.Tests.Common
 {
@@ -21,9 +21,7 @@ namespace TaskScheduler.Application.Tests.Common
         {
             var config = new MapperConfiguration(cfg =>
             {
-                cfg.AddMaps(typeof(TaskScheduler.Application
-                    .DependencyInjection)
-                    .Assembly);
+                cfg.AddMaps(typeof(TaskMappingProfile).Assembly);
             });
 
             Mapper = config.CreateMapper();

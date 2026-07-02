@@ -11,7 +11,7 @@ namespace TaskScheduler.Application.Tests.Auth.Commands.AuthLogin
     {
         private readonly LoginCommandValidator _validator;
 
-        public LoginCommandValidatorTests()
+        public LoginCommandHandlerValidatorTests()
         {
             _validator = new LoginCommandValidator();
         }

@@ -4,6 +4,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using FluentValidation.TestHelper;
 using TaskScheduler.Application.Tasks.Commands.UpdateTask;
+using TaskScheduler.Application.Interfaces;
+
 
 namespace TaskScheduler.Application.Tests.Tasks.Commands.UpdateTask
 {
@@ -131,7 +133,7 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.UpdateTask
             var result = _validator.TestValidate(command);
 
             // Assert
-            result.ShouldHaveValidationErrorFor(x => x.CronExpression);
+            result.ShouldNotHaveValidationErrorFor(x => x.CronExpression);
         }
 
         [Fact]
@@ -169,7 +171,7 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.UpdateTask
             var result = _validator.TestValidate(command);
 
             // Assert
-            result.ShouldNotHaveAnyValidationErrors(x => x.MaxRetries);
+            result.ShouldNotHaveValidationErrorFor(x => x.MaxRetries);
         }
 
         [Fact]

@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
 using TaskScheduler.Application.Tasks.Commands.DeleteTask;
+using TaskScheduler.Application.Interfaces;
+using TaskScheduler.Domain.Entities;
 
 namespace TaskScheduler.Application.Tests.Tasks.Commands.DeleteTask
 {
@@ -15,12 +17,12 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.DeleteTask
         {
             // Arrange
             var repoMock = new Mock<ITaskRepository>();
-            
+            var unitOfWorkMock = new Mock<IUnitOfWork>();
             repoMock.Setup(x => x.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync((ScheduledTask?)null);
 
             var command = new DeleteTaskCommand(Guid.NewGuid());
 
-            var handler = new DeleteTaskHandler(repoMock.Object, Mock.Of<ISchedulerService>());
+            var handler = new DeleteTaskHandler(repoMock.Object, unitOfWorkMock.Object, Mock.Of<ISchedulerService>());
 
             // Act
             var action = () => handler.Handle(command, CancellationToken.None);
@@ -34,11 +36,12 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.DeleteTask
         {
             // Arrange
             var repoMock = new Mock<ITaskRepository>();
-            
+            var unitOfWorkMock = new Mock<IUnitOfWork>();
+
             var deletedTask = new ScheduledTask(
                 "Deleted Task",
                 "This task is deleted",
-                CronExpression.Create("0 0 * * *"),
+                "0 0 * * *",
                 "deleted.exe",
                 3);
             deletedTask.SoftDelete();
@@ -47,13 +50,13 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.DeleteTask
 
             var command = new DeleteTaskCommand(Guid.NewGuid());
 
-            var handler = new DeleteTaskHandler(repoMock.Object, Mock.Of<ISchedulerService>());
+            var handler = new DeleteTaskHandler(repoMock.Object, unitOfWorkMock.Object, Mock.Of<ISchedulerService>());
 
             // Act
             var action = () => handler.Handle(command, CancellationToken.None);
 
             // Assert
-            await action.Should().ThrowAsync<ArgumentException>().WithMessage("Task deleted");
+            await action.Should().ThrowAsync<InvalidOperationException>().WithMessage("Task deleted");
         }
 
         [Fact]
@@ -62,10 +65,12 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.DeleteTask
             // Arrange
             var repoMock = new Mock<ITaskRepository>();
             var schedulerMock = new Mock<ISchedulerService>();
+            var unitOfWorkMock = new Mock<IUnitOfWork>();
+
             var existingTask = new ScheduledTask(
                 "Backup",
                 "Daily backup",
-                CronExpression.Create("0 0 * * *"),
+                "0 0 * * *",
                 "backup.exe",
                 3);
 
@@ -73,7 +78,7 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.DeleteTask
 
             var command = new DeleteTaskCommand(Guid.NewGuid());
 
-            var handler = new DeleteTaskHandler(repoMock.Object, schedulerMock.Object);
+            var handler = new DeleteTaskHandler(repoMock.Object, unitOfWorkMock.Object, Mock.Of<ISchedulerService>());
 
             // Act
             await handler.Handle(command, CancellationToken.None);
@@ -87,11 +92,12 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.DeleteTask
         {
             // Arrange
             var repoMock = new Mock<ITaskRepository>();
+            var unitOfWorkMock = new Mock<IUnitOfWork>();
 
             var existingTask = new ScheduledTask(
                 "Backup",
                 "Daily backup",
-                CronExpression.Create("0 0 * * *"),
+                "0 0 * * *",
                 "backup.exe",
                 3);
 
@@ -99,7 +105,7 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.DeleteTask
 
             var command = new DeleteTaskCommand(Guid.NewGuid());
 
-            var handler = new DeleteTaskHandler(repoMock.Object, Mock.Of<ISchedulerService>());
+            var handler = new DeleteTaskHandler(repoMock.Object, unitOfWorkMock.Object, Mock.Of<ISchedulerService>());
 
             // Act
             await handler.Handle(command, CancellationToken.None);
@@ -113,11 +119,13 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.DeleteTask
         {
             // Arrange
             var repoMock = new Mock<ITaskRepository>();
+            var unitOfWorkMock = new Mock<IUnitOfWork>();
             var schedulerMock = new Mock<ISchedulerService>();
+
             var existingTask = new ScheduledTask(
                 "Backup",
                 "Daily backup",
-                CronExpression.Create("0 0 * * *"),
+                "0 0 * * *",
                 "backup.exe",
                 3);
 
@@ -125,7 +133,7 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.DeleteTask
 
             var command = new DeleteTaskCommand(Guid.NewGuid());
 
-            var handler = new DeleteTaskHandler(repoMock.Object, schedulerMock.Object);
+            var handler = new DeleteTaskHandler(repoMock.Object, unitOfWorkMock.Object, schedulerMock.Object);
 
             // Act
             await handler.Handle(command, CancellationToken.None);

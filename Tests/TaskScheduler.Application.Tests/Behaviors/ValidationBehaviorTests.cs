@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using FluentValidation.Results;
+using FluentValidation;
 using FluentAssertions;
 using Moq;
+using MediatR;
 using TaskScheduler.Application.Common.Behaviors;
 using TaskScheduler.Application.Tasks.Commands.CreateTask;
 namespace TaskScheduler.Application.Tests.Behaviors
@@ -16,7 +18,7 @@ namespace TaskScheduler.Application.Tests.Behaviors
         {
             // Arrange
             var validatorMock = new Mock<IValidator<CreateTaskCommand>>();
-
+            validatorMock.Setup(x => x.ValidateAsync(It.IsAny<ValidationContext<CreateTaskCommand>>(), It.IsAny<CancellationToken>())).ReturnsAsync(new ValidationResult());
             var validators = new List<IValidator<CreateTaskCommand>>
             {
                 validatorMock.Object
@@ -33,7 +35,7 @@ namespace TaskScheduler.Application.Tests.Behaviors
 
             var nextCalled = false;
 
-            RequestHandlerDelegate<Guid> next = () =>
+            RequestHandlerDelegate<Guid> next = (ct) =>
             {
                 nextCalled = true;
                 return Task.FromResult(Guid.NewGuid());
@@ -57,8 +59,7 @@ namespace TaskScheduler.Application.Tests.Behaviors
                 new ValidationFailure("Name", "Name is required.")
             };
 
-            validatorMock.Setup(x => x.ValidateAsync(It.IsAny<ValidationContext<CreateTaskCommand>>(), It.IsAny<CancellationToken>()))
-                         .ReturnsAsync(new ValidationResult(failures));
+            validatorMock.Setup(x => x.ValidateAsync(It.IsAny<ValidationContext<CreateTaskCommand>>(), It.IsAny<CancellationToken>())).ReturnsAsync(new ValidationResult(failures));
             
             var validators = new List<IValidator<CreateTaskCommand>>
             {
@@ -76,7 +77,7 @@ namespace TaskScheduler.Application.Tests.Behaviors
 
             var nextCalled = false;
 
-            RequestHandlerDelegate<Guid> next = () =>
+            RequestHandlerDelegate<Guid> next = (ct) =>
             {
                 nextCalled = true;
                 return Task.FromResult(Guid.NewGuid());
@@ -97,7 +98,6 @@ namespace TaskScheduler.Application.Tests.Behaviors
             // Arrange
             var validators = new List<IValidator<CreateTaskCommand>>();
 
-
             var behavior = new ValidationBehavior<CreateTaskCommand, Guid>(validators);
 
             var command = new CreateTaskCommand(
@@ -109,7 +109,7 @@ namespace TaskScheduler.Application.Tests.Behaviors
 
             var nextCalled = false;
 
-            RequestHandlerDelegate<Guid> next = () =>
+            RequestHandlerDelegate<Guid> next = (ct) =>
             {
                 nextCalled = true;
                 return Task.FromResult(Guid.NewGuid());

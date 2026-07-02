@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using TaskScheduler.Domain.Enums;
 using TaskScheduler.Domain.Entities;
 using TaskScheduler.Domain.ValueObjects;
-using TaskScheduler.Infrastructure.Persistence.Repositories;
+using TaskScheduler.Infrastructure.Repositories;
 using TaskScheduler.Infrastructure.Tests.Common;
 using Xunit;
 namespace TaskScheduler.Infrastructure.Tests.Persistence
@@ -49,11 +49,12 @@ namespace TaskScheduler.Infrastructure.Tests.Persistence
         public async Task GetByTaskIdAsync_Found_Should_Return_List_ExecutionLog()
         {
             // Arrange
-            var task1 = new TaskExecutionLog(Guid.NewGuid());
+            var taskId = Guid.NewGuid();
+            var task1 = new TaskExecutionLog(taskId);
 
             task1.MarkAsSuccess();
 
-            var task2 = new TaskExecutionLog(Guid.NewGuid());
+            var task2 = new TaskExecutionLog(taskId);
 
             task2.MarkAsFailed("Failed");
 
@@ -86,19 +87,13 @@ namespace TaskScheduler.Infrastructure.Tests.Persistence
         {
             // Arrange
             var task1 = new TaskExecutionLog(Guid.NewGuid());
-
             task1.MarkAsSuccess();
 
             var task2 = new TaskExecutionLog(Guid.NewGuid());
-
             task2.MarkAsFailed("Failed");
 
-            var task3 = new TaskExecutionLog(
-                taskId,
-                Guid.NewGuid(),
-                DateTime.UtcNow,
-                "Running"
-            );
+            var task3 = new TaskExecutionLog(Guid.NewGuid());
+            task3.MarkAsSuccess();
 
             // DbContext #1 → seed/setup
             using (var seedContext = Factory.CreateDbContext())
@@ -147,7 +142,7 @@ namespace TaskScheduler.Infrastructure.Tests.Persistence
             {
                 var repository = new TaskExecutionLogRepository(assertContext);
 
-                var logs = await repository.GetDetailsAsync(logId);
+                var logs = await repository.GetDetailsAsync(task.Id);
 
                 // Assert
                 logs.Should().NotBeNull();

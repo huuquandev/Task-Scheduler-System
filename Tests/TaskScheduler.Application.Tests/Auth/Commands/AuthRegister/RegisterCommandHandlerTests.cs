@@ -17,12 +17,12 @@ namespace TaskScheduler.Application.Tests.Auth.Commands.AuthRegister
         {
             // Arrange
             var repoMock = new Mock<IUserRepository>(); 
-            var existingUser = new User { Username = "existinguser" };
+            var unitOfWorkMock = new Mock<IUnitOfWork>();
             repoMock.Setup(x => x.UsernameExistsAsync(It.IsAny<string>())).ReturnsAsync(true);
 
-            var command = new RegisterCommand("existinguser", "password");
+            var command = new RegisterCommand("existinguser", "existinguser@example.com", "password", "password");
 
-            var handler = new RegisterCommandHandler(repoMock.Object, Mock.Of<ITokenService>());
+            var handler = new RegisterHandler(repoMock.Object, unitOfWorkMock.Object, Mock.Of<ITokenService>());
 
             // Act
             var action = () => handler.Handle(command, CancellationToken.None);
@@ -35,14 +35,14 @@ namespace TaskScheduler.Application.Tests.Auth.Commands.AuthRegister
         public async Task Handle_WhenEmailExists_ShouldThrowInvalidOperationException()
         {
             // Arrange
-            var repoMock = new Mock<IUserRepository>(); 
-            var existingUser = new User { Email = "existinguser@example.com" };
+            var repoMock = new Mock<IUserRepository>();
+            var unitOfWorkMock = new Mock<IUnitOfWork>(); 
             repoMock.Setup(x => x.EmailExistsAsync(It.IsAny<string>())).ReturnsAsync(true);
 
-            var command = new RegisterCommand("existinguser", "existinguser@example.com", "password");
+            var command = new RegisterCommand("existinguser", "existinguser@example.com", "password", "password");
 
-            var handler = new RegisterCommandHandler(repoMock.Object, Mock.Of<ITokenService>());
-    
+            var handler = new RegisterHandler(repoMock.Object, unitOfWorkMock.Object, Mock.Of<ITokenService>());
+
             // Act
             var action = () => handler.Handle(command, CancellationToken.None);
 
@@ -55,6 +55,7 @@ namespace TaskScheduler.Application.Tests.Auth.Commands.AuthRegister
         {
             // Arrange
             var repoMock = new Mock<IUserRepository>(); 
+            var unitOfWorkMock = new Mock<IUnitOfWork>();
             var tokenServiceMock = new Mock<ITokenService>();
             User? createdUser = null;
 
@@ -67,9 +68,9 @@ namespace TaskScheduler.Application.Tests.Auth.Commands.AuthRegister
                 });
 
             tokenServiceMock.Setup(x => x.HashPassword("password")).Returns("hashedPassword");
-            var command = new RegisterCommand("newuser", "newuser@example.com", "password");
+            var command = new RegisterCommand("newuser", "newuser@example.com", "password", "password");
 
-            var handler = new RegisterCommandHandler(repoMock.Object, tokenServiceMock.Object);
+            var handler = new RegisterHandler(repoMock.Object, unitOfWorkMock.Object, tokenServiceMock.Object);
 
             // Act
             var result = await handler.Handle(command, CancellationToken.None);
@@ -86,6 +87,7 @@ namespace TaskScheduler.Application.Tests.Auth.Commands.AuthRegister
         {
             // Arrange
             var repoMock = new Mock<IUserRepository>(); 
+            var unitOfWorkMock = new Mock<IUnitOfWork>();
             var tokenServiceMock = new Mock<ITokenService>();
             User? createdUser = null;
 
@@ -98,9 +100,9 @@ namespace TaskScheduler.Application.Tests.Auth.Commands.AuthRegister
                 });
             tokenServiceMock.Setup(x => x.HashPassword("password")).Returns("hashedPassword");
 
-            var command = new RegisterCommand("newuser", "newuser@example.com", "password");
+            var command = new RegisterCommand("newuser", "newuser@example.com", "password", "password");
 
-            var handler = new RegisterCommandHandler(repoMock.Object, tokenServiceMock.Object);
+            var handler = new RegisterHandler(repoMock.Object, unitOfWorkMock.Object, tokenServiceMock.Object);
 
             // Act
             var result = await handler.Handle(command, CancellationToken.None);

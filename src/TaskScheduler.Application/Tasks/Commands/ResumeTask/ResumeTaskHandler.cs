@@ -38,7 +38,7 @@ namespace TaskScheduler.Application.Tasks.Commands.ResumeTask
             await _repo.UpdateAsync(task);
 
             // execution
-            await _scheduler.ScheduleTaskAsync(task);
+            await _scheduler.RescheduleTaskAsync(task);
 
             // Save change to DB
             await _unitOfWork.SaveChangesAsync();

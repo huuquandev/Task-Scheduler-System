@@ -4,7 +4,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
 using TaskScheduler.Infrastructure.Tests.Common;
-using TaskScheduler.Infrastructure.Persistence.Repositories;
+using TaskScheduler.Infrastructure.Repositories;
+using TaskScheduler.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 namespace TaskScheduler.Infrastructure.Tests.Persistence
 {

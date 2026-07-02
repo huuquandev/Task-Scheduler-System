@@ -26,7 +26,7 @@ namespace TaskScheduler.Application.Auth.Commands.AuthLogin
                   throw new UnauthorizedAccessException("Invalid username or password.");
 
               if (!user.IsActive)
-                  throw new UnauthorizedAccessException("Account is disabled.");
+                  throw new InvalidOperationException("Account is disabled.");
 
               var token = _tokenService.GenerateJwtToken(user);
 

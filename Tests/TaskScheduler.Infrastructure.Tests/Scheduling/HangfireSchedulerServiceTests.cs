@@ -3,7 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Hangfire;
-using Hangfire.MemoryStorage;
+using Hangfire.InMemory;
+using TaskScheduler.Domain.Entities;
+using TaskScheduler.Infrastructure.Scheduling;
+using Hangfire.Storage;
+using Hangfire.Storage.Monitoring;
+using Moq;
 namespace TaskScheduler.Infrastructure.Tests.Scheduling
 {
     public class HangfireSchedulerServiceTests
@@ -22,7 +27,9 @@ namespace TaskScheduler.Infrastructure.Tests.Scheduling
         public async Task ScheduleTaskAsync_Should_Create_RecurringJob()
         {
             // Arrange
-            var service = new HangfireSchedulerService();
+            var manager = new Mock<IRecurringJobManager>();
+
+            var service = new HangfireSchedulerService(manager.Object);
 
             var task = new ScheduledTask(
                 "Backup",
@@ -35,38 +42,30 @@ namespace TaskScheduler.Infrastructure.Tests.Scheduling
             // Act
             await service.ScheduleTaskAsync(task);
 
-            using var connection = JobStorage.Current.GetConnection();
-            var jobs = connection.GetRecurringJobs();
-            var job = jobs.Single(x => x.Id == task.Id.ToString());
-
             // Assert
-            job.Cron.Should().Be(task.CronExpression.Value);
+             manager.Verify(x =>x.AddOrUpdate<TaskJob>(
+                    task.Id.ToString(),
+                    It.IsAny<System.Linq.Expressions.Expression<Action<TaskJob>>>(),
+                    task.CronExpression.Value,
+                    It.IsAny<RecurringJobOptions>()),
+                    Times.Once);
         }
 
         [Fact]
-        public async Task UnscheduleTaskAsync_Should_Remove_RecurringJob()
+        public async Task UnscheduleTaskAsync_Should_Call_RemoveIfExists()
         {
             // Arrange
-            var service = new HangfireSchedulerService();
+            var manager = new Mock<IRecurringJobManager>();
 
-            var task = new ScheduledTask(
-                "Backup",
-                "Daily backup",
-                "0 * * * *",   
-                "backup.exe",
-                3
-            );
+            var service = new HangfireSchedulerService(manager.Object);
 
-            await service.ScheduleTaskAsync(task);
+            var taskId = Guid.NewGuid();
 
             // Act
-            await service.UnscheduleTaskAsync(task.Id);
-
-            using var connection = JobStorage.Current.GetConnection();
-            var jobs = connection.GetRecurringJobs();
+            await service.UnscheduleTaskAsync(taskId);
 
             // Assert
-            jobs.Should().NotContain(x => x.Id == task.Id.ToString());
+            manager.Verify(x => x.RemoveIfExists(taskId.ToString()), Times.Once);
         }
     }
 }

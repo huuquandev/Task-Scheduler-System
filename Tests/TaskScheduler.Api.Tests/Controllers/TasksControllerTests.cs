@@ -14,6 +14,7 @@ using TaskScheduler.Application.Tasks.Queries.GetTaskById;
 using TaskScheduler.Application.Tasks.Commands.CreateTask;
 using TaskScheduler.Application.Tasks.Commands.UpdateTask;
 using TaskScheduler.Application.Tasks.Queries.GetTasks;
+using TaskScheduler.Application.Tasks.Queries.GetTaskExecutionLogs;
 using TaskScheduler.Application.Common.Models;
 using Xunit;
 namespace TaskScheduler.Api.Tests.Controllers
@@ -253,7 +254,7 @@ namespace TaskScheduler.Api.Tests.Controllers
             var taskId = await createResponse.Content.ReadFromJsonAsync<ApiResponse<Guid>>();
 
             // Act
-            var response = await Client.PostAsync($"/api/v1/tasks/{taskId.Data}/trigger", new StringContent("", Encoding.UTF8, "application/json"));
+            var response = await Client.PostAsync($"/api/v1/tasks/{taskId.Data}/trigger", null);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -281,7 +282,7 @@ namespace TaskScheduler.Api.Tests.Controllers
             var taskId = await createResponse.Content.ReadFromJsonAsync<ApiResponse<Guid>>();
 
             // Act
-            var response = await Client.PostAsync($"/api/v1/tasks/{taskId.Data}/pause", new StringContent("", Encoding.UTF8, "application/json"));
+            var response = await Client.PostAsync($"/api/v1/tasks/{taskId.Data}/pause", null);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -309,7 +310,7 @@ namespace TaskScheduler.Api.Tests.Controllers
             var taskId = await createResponse.Content.ReadFromJsonAsync<ApiResponse<Guid>>();
 
             // Act
-            var response = await Client.PostAsync($"/api/v1/tasks/{taskId.Data}/resume", new StringContent("", Encoding.UTF8, "application/json"));
+            var response = await Client.PostAsync($"/api/v1/tasks/{taskId.Data}/resume", null);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -337,7 +338,7 @@ namespace TaskScheduler.Api.Tests.Controllers
             var taskId = await createResponse.Content.ReadFromJsonAsync<ApiResponse<Guid>>();
 
             // Act
-            var response = await Client.PostAsync($"/api/v1/tasks/{taskId.Data}/trigger", new StringContent("", Encoding.UTF8, "application/json"));
+            var response = await Client.PostAsync($"/api/v1/tasks/{taskId.Data}/trigger", null);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -361,15 +362,15 @@ namespace TaskScheduler.Api.Tests.Controllers
 
             createResponse.EnsureSuccessStatusCode();
 
-            var taskId = (await createResponse.Content.ReadFromJsonAsync<ApiResponse<Guid>>())!.Data;
+            var taskId = await createResponse.Content.ReadFromJsonAsync<ApiResponse<Guid>>();
 
             // Trigger execution
-            var triggerResponse = await Client.PostAsync($"/api/v1/tasks/{taskId.Data}/trigger", new StringContent("", Encoding.UTF8, "application/json"));
+            var triggerResponse = await Client.PostAsync($"/api/v1/tasks/{taskId.Data}/trigger", null);
 
             triggerResponse.EnsureSuccessStatusCode();
 
             // Act
-            var response = await Client.GetAsync($"/api/v1/tasks/{taskId}/logs");
+            var response = await Client.GetAsync($"/api/v1/tasks/{taskId.Data}/logs");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -381,7 +382,7 @@ namespace TaskScheduler.Api.Tests.Controllers
 
             var log = result.Data.First();
 
-            log.TaskId.Should().Be(taskId);
+            log.Id.Should().Be(taskId.Data);
             log.StartedAt.Should().NotBe(default);
             log.Status.Should().NotBeNullOrWhiteSpace();
         }

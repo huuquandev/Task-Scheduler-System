@@ -10,14 +10,14 @@ namespace TaskScheduler.Application.Auth.Commands.AuthRegister
      public class RegisterHandler : IRequestHandler<RegisterCommand, Guid>
       {
           private readonly IUserRepository _userRepository;
-          private readonly ITokenService _tokenService;
           private readonly IUnitOfWork _unitOfWork;
+          private readonly ITokenService _tokenService;
 
-          public RegisterHandler(IUserRepository userRepository, ITokenService tokenService, IUnitOfWork unitOfWork)
+          public RegisterHandler(IUserRepository userRepository, IUnitOfWork unitOfWork, ITokenService tokenService)
           {
               _userRepository = userRepository;
-              _tokenService = tokenService;
               _unitOfWork = unitOfWork;
+              _tokenService = tokenService;
           }
 
           public async Task<Guid> Handle(RegisterCommand request, CancellationToken cancellationToken)

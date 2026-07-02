@@ -4,9 +4,11 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using TaskScheduler.Infrastructure.Services;
+using TaskScheduler.Domain.Entities;
 using System.IdentityModel.Tokens.Jwt;
 using FluentAssertions;
 using Xunit;
+using System.Security.Claims;
 namespace TaskScheduler.Infrastructure.Tests.Services
 {
     public class TokenServiceTests

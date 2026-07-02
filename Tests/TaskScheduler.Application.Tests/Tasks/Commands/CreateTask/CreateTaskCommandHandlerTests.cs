@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
 using TaskScheduler.Application.Tasks.Commands.CreateTask;
+using TaskScheduler.Application.Interfaces;
+using TaskScheduler.Domain.Entities;
 
 namespace TaskScheduler.Application.Tests.Tasks.Commands.CreateTask
 {
@@ -15,6 +17,7 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.CreateTask
         {
             // Arrange
             var repoMock = new Mock<ITaskRepository>();
+            var unitOfWorkMock = new Mock<IUnitOfWork>();
 
             var command = new CreateTaskCommand(
                 "Backup",
@@ -23,7 +26,7 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.CreateTask
                 "backup.exe",
                 3);
 
-            var handler = new CreateTaskHandler(repoMock.Object);
+            var handler = new CreateTaskHandler(repoMock.Object, unitOfWorkMock.Object);
 
             // Act
             var result = await handler.Handle(command, CancellationToken.None);
@@ -37,6 +40,7 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.CreateTask
         {
             // Arrange
             var repoMock = new Mock<ITaskRepository>();
+            var unitOfWorkMock = new Mock<IUnitOfWork>();
 
             var command = new CreateTaskCommand(
                 "Backup",
@@ -45,7 +49,7 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.CreateTask
                 "backup.exe",
                 3);
 
-            var handler = new CreateTaskHandler(repoMock.Object);
+            var handler = new CreateTaskHandler(repoMock.Object, unitOfWorkMock.Object);
 
             // Act
             await handler.Handle(command, CancellationToken.None);
@@ -59,7 +63,7 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.CreateTask
         {
             // Arrange
             var repoMock = new Mock<ITaskRepository>();
-
+            var unitOfWorkMock = new Mock<IUnitOfWork>();
             ScheduledTask? createdTask = null;
 
             repoMock.Setup(x => x.AddAsync(It.IsAny<ScheduledTask>()))
@@ -75,7 +79,7 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.CreateTask
                 "backup.exe",
                 3);
 
-            var handler = new CreateTaskHandler(repoMock.Object);
+            var handler = new CreateTaskHandler(repoMock.Object, unitOfWorkMock.Object);
 
             // Act
             await handler.Handle(command, CancellationToken.None);
@@ -97,6 +101,7 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.CreateTask
         {
             // Arrange
             var repoMock = new Mock<ITaskRepository>();
+            var unitOfWorkMock = new Mock<IUnitOfWork>();
 
             ScheduledTask? createdTask = null;
 
@@ -112,8 +117,7 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.CreateTask
                 "0 0 * * *",
                 "backup.exe",
                 3);
-
-            var handler = new CreateTaskHandler(repoMock.Object);
+            var handler = new CreateTaskHandler(repoMock.Object, unitOfWorkMock.Object);
 
             // Act
             await handler.Handle(command, CancellationToken.None);

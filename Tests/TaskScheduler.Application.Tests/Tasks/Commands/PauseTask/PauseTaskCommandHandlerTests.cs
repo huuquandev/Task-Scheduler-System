@@ -5,6 +5,9 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
 using TaskScheduler.Application.Tasks.Commands.PauseTask;
+using TaskScheduler.Application.Interfaces;
+using TaskScheduler.Domain.Entities;
+using TaskScheduler.Domain.Enums;
 
 namespace TaskScheduler.Application.Tests.Tasks.Commands.PauseTask
 {
@@ -15,12 +18,12 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.PauseTask
         {
             // Arrange
             var repoMock = new Mock<ITaskRepository>();
-            
+            var unitOfWorkMock = new Mock<IUnitOfWork>();
             repoMock.Setup(x => x.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync((ScheduledTask?)null);
 
             var command = new PauseTaskCommand(Guid.NewGuid());
 
-            var handler = new PauseTaskHandler(repoMock.Object, Mock.Of<ISchedulerService>());
+            var handler = new PauseTaskHandler(repoMock.Object, unitOfWorkMock.Object, Mock.Of<ISchedulerService>());
 
             // Act
             var action = () => handler.Handle(command, CancellationToken.None);
@@ -34,11 +37,11 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.PauseTask
         {
             // Arrange
             var repoMock = new Mock<ITaskRepository>();
-            
+            var unitOfWorkMock = new Mock<IUnitOfWork>();
             var existingTask = new ScheduledTask(
                 "Test Task",
                 "This is a test task",
-                CronExpression.Create("0 0 * * *"),
+                "0 0 * * *",
                 "test.exe",
                 3);
             existingTask.SoftDelete();
@@ -47,35 +50,36 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.PauseTask
 
             var command = new PauseTaskCommand(Guid.NewGuid());
 
-            var handler = new PauseTaskHandler(repoMock.Object, Mock.Of<ISchedulerService>());
+            var handler = new PauseTaskHandler(repoMock.Object, unitOfWorkMock.Object, Mock.Of<ISchedulerService>());
 
             // Act
             var action = () => handler.Handle(command, CancellationToken.None);
 
             // Assert
-            await action.Should().ThrowAsync<ArgumentException>().WithMessage("Task deleted");
+            await action.Should().ThrowAsync<InvalidOperationException>().WithMessage("Task deleted");
         }
 
         [Theory]
-        [InlineData("Pending")]
-        [InlineData("Running")]
-        [InlineData("Completed")]
-        public async Task Handle_WhenTaskNotActive_ShouldThrowArgumentException(string status)
+        [InlineData(ScheduledTaskStatus.Pending)]
+        [InlineData(ScheduledTaskStatus.Running)]
+        [InlineData(ScheduledTaskStatus.Completed)]
+        public async Task Handle_WhenTaskNotActive_ShouldThrowInvalidOperationException(ScheduledTaskStatus status)
         {
             // Arrange
             var repoMock = new Mock<ITaskRepository>();
+            var unitOfWorkMock = new Mock<IUnitOfWork>();
             var existingTask = new ScheduledTask(
                 "Test Task",
                 "This is a test task",
-                CronExpression.Create("0 0 * * *"),
+                "0 0 * * *",
                 "test.exe",
                 3);
 
-            if(status == "Running")
+            if(status == ScheduledTaskStatus.Running)
             {
                 existingTask.MarkAsRunning();
             }
-            else if(status == "Completed")
+            else if(status == ScheduledTaskStatus.Completed)
             {
                 existingTask.MarkAsCompleted();
             }
@@ -84,7 +88,7 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.PauseTask
 
             var command = new PauseTaskCommand(Guid.NewGuid());
 
-            var handler = new PauseTaskHandler(repoMock.Object, Mock.Of<ISchedulerService>());
+            var handler = new PauseTaskHandler(repoMock.Object, unitOfWorkMock.Object, Mock.Of<ISchedulerService>());
 
             // Act
             var action = () => handler.Handle(command, CancellationToken.None);
@@ -97,10 +101,11 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.PauseTask
         {
             // Arrange
             var repoMock = new Mock<ITaskRepository>();
+            var unitOfWorkMock = new Mock<IUnitOfWork>();
             var existingTask = new ScheduledTask(
                 "Test Task",
                 "This is a test task",
-                CronExpression.Create("0 0 * * *"),
+                "0 0 * * *",
                 "test.exe",
                 3);
             existingTask.MarkAsActive();
@@ -108,7 +113,7 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.PauseTask
 
             var command = new PauseTaskCommand(Guid.NewGuid());
 
-            var handler = new PauseTaskHandler(repoMock.Object, Mock.Of<ISchedulerService>());
+            var handler = new PauseTaskHandler(repoMock.Object, unitOfWorkMock.Object, Mock.Of<ISchedulerService>());
 
             // Act
             await handler.Handle(command, CancellationToken.None);
@@ -122,11 +127,11 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.PauseTask
         {
             // Arrange
             var repoMock = new Mock<ITaskRepository>();
-
+            var unitOfWorkMock = new Mock<IUnitOfWork>();   
             var existingTask = new ScheduledTask(
                 "Test Task",
                 "This is a test task",
-                CronExpression.Create("0 0 * * *"),
+                "0 0 * * *",
                 "test.exe",
                 3);
             existingTask.MarkAsActive();
@@ -135,7 +140,7 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.PauseTask
 
             var command = new PauseTaskCommand(Guid.NewGuid());
 
-            var handler = new PauseTaskHandler(repoMock.Object, Mock.Of<ISchedulerService>());
+            var handler = new PauseTaskHandler(repoMock.Object, unitOfWorkMock.Object, Mock.Of<ISchedulerService>());
 
             // Act
             await handler.Handle(command, CancellationToken.None);
@@ -149,12 +154,13 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.PauseTask
         {
             // Arrange
             var repoMock = new Mock<ITaskRepository>();
+            var unitOfWorkMock = new Mock<IUnitOfWork>();
             var schedulerMock = new Mock<ISchedulerService>();
             
             var existingTask = new ScheduledTask(
                 "Test Task",
                 "This is a test task",
-                CronExpression.Create("0 0 * * *"),
+                "0 0 * * *",
                 "test.exe",
                 3);
             existingTask.MarkAsActive();
@@ -163,7 +169,7 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.PauseTask
 
             var command = new PauseTaskCommand(Guid.NewGuid());
 
-            var handler = new PauseTaskHandler(repoMock.Object, schedulerMock.Object);
+            var handler = new PauseTaskHandler(repoMock.Object, unitOfWorkMock.Object, schedulerMock.Object);
 
             // Act
             await handler.Handle(command, CancellationToken.None);

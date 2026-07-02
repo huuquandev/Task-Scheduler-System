@@ -5,7 +5,9 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
 using TaskScheduler.Application.Tasks.Commands.TriggerTask;
-using taskScheduler.Application.interfaces;
+using TaskScheduler.Application.Interfaces;
+using TaskScheduler.Domain.Entities;
+using TaskScheduler.Domain.Enums;
 
 namespace TaskScheduler.Application.Tests.Tasks.Commands.TriggerTask
 {
@@ -39,12 +41,10 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.TriggerTask
             var deletedTask = new ScheduledTask(
                 "Deleted Task",
                 "This task is deleted",
-                CronExpression.Create("0 0 * * *"),
+                "0 0 * * *",
                 "deleted.exe",
-                3)
-            {
-                IsDeleted = true
-            };
+                3);
+            deletedTask.SoftDelete();
 
             repoMock.Setup(x => x.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync(deletedTask);
 
@@ -60,26 +60,23 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.TriggerTask
         }
 
         [Theory]
-        [InlineData("Pending")]
-        [InlineData("Running")]
-        [InlineData("Completed")]
-        [InlineData("Paused")]
-        public async Task Handle_WhenTaskCannotBeTriggered_ShouldThrowInvalidOperationException()
+        [InlineData(ScheduledTaskStatus.Pending)]
+        [InlineData(ScheduledTaskStatus.Running)]
+        [InlineData(ScheduledTaskStatus.Completed)]
+        [InlineData(ScheduledTaskStatus.Paused)]
+        public async Task Handle_WhenTaskCannotBeTriggered_ShouldThrowInvalidOperationException(ScheduledTaskStatus status)
         {
             // Arrange
             var repoMock = new Mock<ITaskRepository>();
             
-            var deletedTask = new ScheduledTask(
+            var existingTask = new ScheduledTask(
                 "Deleted Task",
                 "This task is deleted",
-                CronExpression.Create("0 0 * * *"),
+                "0 0 * * *",
                 "deleted.exe",
-                3)
-            {
-                IsDeleted = true
-            };
+                3);
 
-            repoMock.Setup(x => x.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync(deletedTask);
+            repoMock.Setup(x => x.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync(existingTask);
 
             var command = new TriggerTaskCommand(Guid.NewGuid());
 
@@ -93,9 +90,9 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.TriggerTask
         }
 
         [Theory]
-        [InlineData("Active")]
-        [InlineData("Failed")]
-        public async Task Handle_WhenRequestIsValid_ShouldExecuteTask()
+        [InlineData(ScheduledTaskStatus.Active)]
+        [InlineData(ScheduledTaskStatus.Failed)]
+        public async Task Handle_WhenRequestIsValid_ShouldExecuteTask(ScheduledTaskStatus status)
         {
             // Arrange
             var repoMock = new Mock<ITaskRepository>();
@@ -103,10 +100,17 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.TriggerTask
             var existingTask = new ScheduledTask(
                 "Backup",
                 "Daily backup",
-                CronExpression.Create("0 0 * * *"),
+                "0 0 * * *",
                 "backup.exe",
                 3);
-
+            if(status == ScheduledTaskStatus.Failed)
+            {
+                existingTask.MarkAsFailed("Task Failed");
+            }
+            else
+            {
+                existingTask.MarkAsActive();
+            }
             repoMock.Setup(x => x.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync(existingTask);
 
             var command = new TriggerTaskCommand(Guid.NewGuid());

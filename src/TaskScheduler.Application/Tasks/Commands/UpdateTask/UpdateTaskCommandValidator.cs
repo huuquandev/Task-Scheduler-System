@@ -6,9 +6,9 @@ using FluentValidation;
 
 namespace TaskScheduler.Application.Tasks.Commands.UpdateTask
 {
-    public class UpdateTaskComandValidator : AbstractValidator<UpdateTaskCommand>
+    public class UpdateTaskCommandValidator : AbstractValidator<UpdateTaskCommand>
     {
-        public UpdateTaskComandValidator()
+        public UpdateTaskCommandValidator()
         {
             RuleFor(x => x.Name)
                 .NotEmpty()

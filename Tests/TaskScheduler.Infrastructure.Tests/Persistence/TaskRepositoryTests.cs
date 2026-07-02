@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using TaskScheduler.Domain.Enums;
 using TaskScheduler.Domain.Entities;
 using TaskScheduler.Domain.ValueObjects;
-using TaskScheduler.Infrastructure.Persistence.Repositories;
+using TaskScheduler.Infrastructure.Repositories;
 using TaskScheduler.Infrastructure.Tests.Common;
 using Xunit;
 
@@ -22,7 +22,7 @@ namespace TaskScheduler.Infrastructure.Tests.Persistence
             var task = new ScheduledTask(
                 "Backup",
                 "Daily backup",
-                CronExpression.Create("0 0 * * *"),
+                "0 0 * * *",
                 "backup.exe",
                 3);
 
@@ -39,7 +39,7 @@ namespace TaskScheduler.Infrastructure.Tests.Persistence
             // DbContext #2 → assert/query DB thật
             using (var assertContext = Factory.CreateDbContext())
             {
-                var savedTask = await assertContext.Tasks.FirstOrDefaultAsync(x => x.Id == task.Id);
+                var savedTask = await assertContext.ScheduledTasks.FirstOrDefaultAsync(x => x.Id == task.Id);
 
                 // Assert
                 savedTask.Should().NotBeNull();
@@ -57,7 +57,7 @@ namespace TaskScheduler.Infrastructure.Tests.Persistence
             var task = new ScheduledTask(
                 "Backup",
                 "Daily backup",
-                CronExpression.Create("0 0 * * *"),
+                "0 0 * * *",
                 "backup.exe",
                 3);
 
@@ -116,7 +116,7 @@ namespace TaskScheduler.Infrastructure.Tests.Persistence
             var task = new ScheduledTask(
                 "Backup",
                 "Daily backup",
-                CronExpression.Create("0 0 * * *"),
+                "0 0 * * *",
                 "backup.exe",
                 3);
 
@@ -152,7 +152,7 @@ namespace TaskScheduler.Infrastructure.Tests.Persistence
             var task = new ScheduledTask(
                 "Old Name",
                 "Old Description",
-                CronExpression.Create("0 0 * * *"),
+                "0 0 * * *",
                 "old.exe",
                 3);
 
@@ -197,7 +197,7 @@ namespace TaskScheduler.Infrastructure.Tests.Persistence
                         new ScheduledTask(
                             $"Task {i}",
                             $"Description {i}",
-                            CronExpression.Create("0 0 * * *"),
+                            "0 0 * * *",
                             $"task{i}.exe",
                             3));
                 }
@@ -246,7 +246,7 @@ namespace TaskScheduler.Infrastructure.Tests.Persistence
                     var task = new ScheduledTask(
                             $"Task {i}",
                             $"Description {i}",
-                            CronExpression.Create("0 0 * * *"),
+                            "0 0 * * *",
                             $"task{i}.exe",
                             3);
                     if(i%2 != 0)
@@ -255,7 +255,7 @@ namespace TaskScheduler.Infrastructure.Tests.Persistence
                     }
                     else
                     {
-                        task.MarkAsFailed();
+                        task.MarkAsFailed("Failed");
                     }
                     await repository.AddAsync(task);
                     

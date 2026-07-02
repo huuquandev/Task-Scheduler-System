@@ -28,7 +28,7 @@ namespace TaskScheduler.Application.Tasks.Commands.UpdateTask
                 
             if(task.IsDeleted)
                 throw new InvalidOperationException("Task deleted");
-
+            
             var cron = request.CronExpression != null ? CronExpression.Create(request.CronExpression): task.CronExpression;
             task.Update(
                 request.Name ?? task.Name,
