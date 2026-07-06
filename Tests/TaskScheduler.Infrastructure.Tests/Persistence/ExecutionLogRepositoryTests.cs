@@ -18,29 +18,39 @@ namespace TaskScheduler.Infrastructure.Tests.Persistence
         public async Task AddAsync_Should_Save_ExecutionLog()
         {
             // Arrange
-            var task = new TaskExecutionLog(Guid.NewGuid());
+            var scheduledTask = new ScheduledTask(
+                "Task 1",
+                "Description",
+                "0 * * * *",
+                "backup.exe",
+                3);
 
-            task.MarkAsSuccess();
+            TaskExecutionLog executionLog;
 
             // DbContext #1 → seed/setup
             using (var seedContext = Factory.CreateDbContext())
             {
+                seedContext.ScheduledTasks.Add(scheduledTask);
+                await seedContext.SaveChangesAsync();
+
+                executionLog = new TaskExecutionLog(scheduledTask.Id);
+                executionLog.MarkAsSuccess();
+
                 var repository = new TaskExecutionLogRepository(seedContext);
 
-                await repository.AddAsync(task);
-
+                await repository.AddAsync(executionLog);
                 await seedContext.SaveChangesAsync();
             }
 
             // DbContext #2 → assert/query DB 
             using (var assertContext = Factory.CreateDbContext())
             {
-                var savedTask = await assertContext.TaskExecutionLogs.FirstOrDefaultAsync(x => x.Id == task.Id);
+                var savedTask = await assertContext.TaskExecutionLogs.FirstOrDefaultAsync(x => x.Id == executionLog.Id);
 
                 // Assert
                 savedTask.Should().NotBeNull();
 
-                savedTask!.TaskId.Should().Be(task.TaskId);
+                savedTask!.TaskId.Should().Be(scheduledTask.Id);
                 savedTask.Status.Should().Be(TaskExecutionStatus.Success);
             }
         }
@@ -49,22 +59,32 @@ namespace TaskScheduler.Infrastructure.Tests.Persistence
         public async Task GetByTaskIdAsync_Found_Should_Return_List_ExecutionLog()
         {
             // Arrange
-            var taskId = Guid.NewGuid();
-            var task1 = new TaskExecutionLog(taskId);
+            var scheduledTask = new ScheduledTask(
+                "Task 1",
+                "Description",
+                "0 * * * *",
+                "backup.exe",
+                3);
 
-            task1.MarkAsSuccess();
-
-            var task2 = new TaskExecutionLog(taskId);
-
-            task2.MarkAsFailed("Failed");
+            TaskExecutionLog executionLog1;
+            TaskExecutionLog executionLog2;
 
             // DbContext #1 → seed/setup
             using (var seedContext = Factory.CreateDbContext())
             {
+                seedContext.ScheduledTasks.Add(scheduledTask);
+                await seedContext.SaveChangesAsync();
+
+                executionLog1 = new TaskExecutionLog(scheduledTask.Id);
+                executionLog1.MarkAsSuccess();
+
+                executionLog2 = new TaskExecutionLog(scheduledTask.Id);
+                executionLog2.MarkAsFailed("Failed");
+
                 var repository = new TaskExecutionLogRepository(seedContext);
 
-                await repository.AddAsync(task1);
-                await repository.AddAsync(task2);
+                await repository.AddAsync(executionLog1);
+                await repository.AddAsync(executionLog2);
 
                 await seedContext.SaveChangesAsync();
              }
@@ -74,7 +94,7 @@ namespace TaskScheduler.Infrastructure.Tests.Persistence
             {
                 var repository = new TaskExecutionLogRepository(assertContext);
 
-                var logs = await repository.GetByTaskIdAsync(taskId);
+                var logs = await repository.GetByTaskIdAsync(scheduledTask.Id);
 
                 // Assert
                 logs.Should().NotBeNull();
@@ -86,23 +106,37 @@ namespace TaskScheduler.Infrastructure.Tests.Persistence
         public async Task GetAllAsync_Found_Should_Return_List_ExecutionLog()
         {
             // Arrange
-            var task1 = new TaskExecutionLog(Guid.NewGuid());
-            task1.MarkAsSuccess();
+            var scheduledTask = new ScheduledTask(
+                "Task 1",
+                "Description",
+                "0 * * * *",
+                "backup.exe",
+                3);
 
-            var task2 = new TaskExecutionLog(Guid.NewGuid());
-            task2.MarkAsFailed("Failed");
-
-            var task3 = new TaskExecutionLog(Guid.NewGuid());
-            task3.MarkAsSuccess();
+            TaskExecutionLog executionLog1;
+            TaskExecutionLog executionLog2;
+            TaskExecutionLog executionLog3;
 
             // DbContext #1 → seed/setup
             using (var seedContext = Factory.CreateDbContext())
             {
+                seedContext.ScheduledTasks.Add(scheduledTask);
+                await seedContext.SaveChangesAsync();
+
+                executionLog1 = new TaskExecutionLog(scheduledTask.Id);
+                executionLog1.MarkAsSuccess();
+
+                executionLog2 = new TaskExecutionLog(scheduledTask.Id);
+                executionLog2.MarkAsFailed("Failed");
+
+                executionLog3 = new TaskExecutionLog(scheduledTask.Id);
+                executionLog3.MarkAsSuccess();
+                
                 var repository = new TaskExecutionLogRepository(seedContext);
 
-                await repository.AddAsync(task1);
-                await repository.AddAsync(task2);
-                await repository.AddAsync(task3);
+                await repository.AddAsync(executionLog1);
+                await repository.AddAsync(executionLog2);
+                await repository.AddAsync(executionLog3);
                 await seedContext.SaveChangesAsync();
              }
 
@@ -123,16 +157,27 @@ namespace TaskScheduler.Infrastructure.Tests.Persistence
         public async Task GetDetailsAsync_Found_Should_Return_ExecutionLog()
         {
             // Arrange
-            var task = new TaskExecutionLog(Guid.NewGuid());
+            var scheduledTask = new ScheduledTask(
+                "Task 1",
+                "Description",
+                "0 * * * *",
+                "backup.exe",
+                3);
 
-            task.MarkAsSuccess();
+            TaskExecutionLog executionLog;
 
             // DbContext #1 → seed/setup
             using (var seedContext = Factory.CreateDbContext())
             {
+                seedContext.ScheduledTasks.Add(scheduledTask);
+                await seedContext.SaveChangesAsync();
+
+                executionLog = new TaskExecutionLog(scheduledTask.Id);
+                executionLog.MarkAsSuccess();
+                
                 var repository = new TaskExecutionLogRepository(seedContext);
 
-                await repository.AddAsync(task);
+                await repository.AddAsync(executionLog);
 
                 await seedContext.SaveChangesAsync();
              }
@@ -142,12 +187,12 @@ namespace TaskScheduler.Infrastructure.Tests.Persistence
             {
                 var repository = new TaskExecutionLogRepository(assertContext);
 
-                var logs = await repository.GetDetailsAsync(task.Id);
+                var logs = await repository.GetDetailsAsync(executionLog.Id);
 
                 // Assert
                 logs.Should().NotBeNull();
 
-                logs!.TaskId.Should().Be(task.TaskId);
+                logs!.TaskId.Should().Be(executionLog.TaskId);
                 logs.Status.Should().Be(TaskExecutionStatus.Success);
             }
         }

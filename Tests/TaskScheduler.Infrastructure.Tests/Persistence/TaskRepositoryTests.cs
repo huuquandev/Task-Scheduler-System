@@ -272,7 +272,7 @@ namespace TaskScheduler.Infrastructure.Tests.Persistence
                 var filterPage = await repository.GetPagedAsync(1, 5, ScheduledTaskStatus.Active);
 
                 // Assert - page 
-                filterPage.Items.Should().HaveCount(5);
+                filterPage.Items.Should().HaveCount(3);
                 filterPage.Items.Should().OnlyContain(x => x.Status == ScheduledTaskStatus.Active);
 
                 filterPage.TotalCount.Should().Be(3);

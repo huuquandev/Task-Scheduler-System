@@ -8,6 +8,7 @@ using TaskScheduler.Domain.Entities;
 using TaskScheduler.Infrastructure.Scheduling;
 using Hangfire.Storage;
 using Hangfire.Storage.Monitoring;
+using Hangfire.Common;
 using Moq;
 namespace TaskScheduler.Infrastructure.Tests.Scheduling
 {
@@ -43,13 +44,13 @@ namespace TaskScheduler.Infrastructure.Tests.Scheduling
             await service.ScheduleTaskAsync(task);
 
             // Assert
-             manager.Verify(x =>x.AddOrUpdate<TaskJob>(
-                    task.Id.ToString(),
-                    It.IsAny<System.Linq.Expressions.Expression<Action<TaskJob>>>(),
-                    task.CronExpression.Value,
-                    It.IsAny<RecurringJobOptions>()),
-                    Times.Once);
-        }
+            manager.Verify(x => x.AddOrUpdate(
+                        task.Id.ToString(),
+                        It.IsAny<Job>(),
+                        task.CronExpression.Value,
+                        It.IsAny<RecurringJobOptions>()),
+                        Times.Once);
+                        }
 
         [Fact]
         public async Task UnscheduleTaskAsync_Should_Call_RemoveIfExists()
