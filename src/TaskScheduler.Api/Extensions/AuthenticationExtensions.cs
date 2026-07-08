@@ -14,7 +14,7 @@ namespace TaskScheduler.Api.Extensions
         public static IServiceCollection AddAuthenticationConfiguration(this IServiceCollection services, IConfiguration configuration)
         {
             var jwtSettings = configuration.GetSection("Jwt");
-            var secretKey = jwtSettings.GetValue<string>("SecretKey");
+            var secretKey = jwtSettings.GetValue<string>("Secret");
 
             services.AddAuthentication(options =>
             {

@@ -1,7 +1,11 @@
 # TODO — Công việc cần làm để hoàn thành dự án
 
-> Ngày phân tích: 2026-06-29  
-> Trạng thái tổng thể: **~80% hoàn thành**. Kiến trúc đúng, luồng chính chạy được. Còn lại toàn bộ là **bug trong test** và một số gap nhỏ trong logic.
+> Ngày phân tích: 2026-06-29 | Cập nhật: 2026-07-08  
+> Trạng thái tổng thể: **~90% hoàn thành**.  
+> ✅ Domain Tests: 69/69 PASS  
+> ✅ Application Tests: 83/83 PASS  
+> ✅ Infrastructure Tests: 24/24 PASS  
+> ❌ Api Tests: 16/19 FAIL — còn lại duy nhất cần xử lý
 
 ---
 
@@ -484,6 +488,155 @@ Tuần sau:
 
 Sau cùng:
   NICE-01 → NICE-03 (nâng cao)
+```
+
+---
+
+---
+
+## NHÓM 5 — Api Integration Tests (16/19 FAIL — cần fix)
+
+> Trạng thái: Domain/Application/Infrastructure tests đã pass toàn bộ.  
+> Vấn đề còn lại tập trung ở `Tests/TaskScheduler.Api.Tests/`.
+
+---
+
+### API-01 [CRITICAL] — Register/Login trả về 400 thay vì 200
+
+**File:** `Tests/TaskScheduler.Api.Tests/Controllers/AuthControllerTests.cs`
+
+**Vấn đề:** Mọi test gọi `POST /api/v1/auth/register` và `POST /api/v1/auth/login` đều nhận về `400 Bad Request`.  
+Root cause cần điều tra: `CustomWebApplicationFactory` dùng SQLite in-memory (`DataSource=:memory:`) nhưng **không dùng shared cache** — mỗi connection mở một database riêng biệt nên schema do `EnsureCreated()` tạo ra ở connection này không thấy ở connection khác trong cùng app.
+
+**Cách fix `CustomWebApplicationFactory.cs`:**
+```csharp
+// TRƯỚC (sai — mỗi connection là một DB khác nhau)
+_connection = new SqliteConnection("DataSource=:memory:");
+
+// SAU (đúng — tất cả connection trong process dùng chung một DB)
+_connection = new SqliteConnection($"DataSource=testdb_{Guid.NewGuid():N};Mode=Memory;Cache=Shared");
+```
+
+Và đảm bảo `EnsureCreated()` chạy trên **cùng connection** đó:
+```csharp
+protected override IHost CreateHost(IHostBuilder builder)
+{
+    var host = base.CreateHost(builder);
+    using var scope = host.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    db.Database.EnsureCreated();   // bỏ EnsureDeleted — test đã dùng DB mới mỗi lần
+    return host;
+}
+```
+
+**Ảnh hưởng:** Toàn bộ 16 test đang fail sẽ được unblock sau khi fix cái này.
+
+---
+
+### API-02 [HIGH] — `GetTasks_WithoutToken_Should_Return_Unauthorized` trả về 400 thay vì 401
+
+**File:** `Tests/TaskScheduler.Api.Tests/Controllers/TasksControllerTests.cs:48-55`
+
+**Vấn đề:** Request không có token nhưng nhận `400` thay vì `401`. Xảy ra vì app đang fail ở middleware pipeline trước khi đến auth — do DB chưa khởi tạo đúng (liên quan API-01). Sau khi fix API-01, test này cần kiểm tra lại.
+
+Nếu vẫn fail sau khi fix API-01: kiểm tra `ExceptionHandlingMiddleware` có đang bắt exception và trả về 400 trước khi `[Authorize]` có cơ hội trả về 401 không.
+
+---
+
+### API-03 [HIGH] — `ActiveTask_Should_Return_200` gọi sai endpoint
+
+**File:** `Tests/TaskScheduler.Api.Tests/Controllers/TasksControllerTests.cs:257`
+
+**Vấn đề:**
+```csharp
+// Test tên là ActiveTask_Should_Return_200 nhưng gọi /trigger thay vì /activate
+var response = await Client.PostAsync($"/api/v1/tasks/{taskId.Data}/trigger", null);
+```
+
+Task mới tạo có status `Pending`. Endpoint `/trigger` yêu cầu status `Active` → sẽ fail với 400.
+
+**Cách fix:** Sửa endpoint đúng với ý định test:
+```csharp
+var response = await Client.PostAsync($"/api/v1/tasks/{taskId.Data}/activate", null);
+```
+
+---
+
+### API-04 [HIGH] — `PauseTask_Should_Return_200` sẽ fail vì task chưa Active
+
+**File:** `Tests/TaskScheduler.Api.Tests/Controllers/TasksControllerTests.cs:264-289`
+
+**Vấn đề:** Test tạo task (status `Pending`) rồi gọi pause ngay. Domain rule: chỉ task `Active` mới được pause.
+
+**Cách fix:** Thêm bước activate trước khi pause:
+```csharp
+// Sau khi tạo task, activate trước
+await Client.PostAsync($"/api/v1/tasks/{taskId.Data}/activate", null);
+
+// Rồi mới pause
+var response = await Client.PostAsync($"/api/v1/tasks/{taskId.Data}/pause", null);
+```
+
+---
+
+### API-05 [HIGH] — `ResumeTask_Should_Return_200` sẽ fail vì task chưa Paused
+
+**File:** `Tests/TaskScheduler.Api.Tests/Controllers/TasksControllerTests.cs:291-317`
+
+**Vấn đề:** Tương tự API-04. Task cần đi qua `Pending → Active → Paused` trước khi có thể resume.
+
+**Cách fix:** Chuỗi setup đầy đủ:
+```csharp
+await Client.PostAsync($"/api/v1/tasks/{taskId.Data}/activate", null);
+await Client.PostAsync($"/api/v1/tasks/{taskId.Data}/pause", null);
+var response = await Client.PostAsync($"/api/v1/tasks/{taskId.Data}/resume", null);
+```
+
+---
+
+### API-06 [MEDIUM] — `GetExecutionLogs_Should_Return_Logs` assertion sai field
+
+**File:** `Tests/TaskScheduler.Api.Tests/Controllers/TasksControllerTests.cs:385`
+
+**Vấn đề:**
+```csharp
+log.Id.Should().Be(taskId.Data);   // ← log.Id là ID của execution log, không phải taskId
+```
+
+`ExecutionLogDto.Id` là ID của bản ghi log, không phải task ID. Nên assert `TaskId` thay thế.
+
+**Cách fix:**
+```csharp
+log.TaskId.Should().Be(taskId.Data);   // hoặc tên field tương đương trong ExecutionLogDto
+```
+
+Ngoài ra, `TriggerTask` (status `Pending`) sẽ fail trước khi tạo được log — cần activate task trước trigger.
+
+---
+
+### API-07 [MEDIUM] — `TriggerTask_Should_Return_200` sẽ fail vì task chưa Active
+
+**File:** `Tests/TaskScheduler.Api.Tests/Controllers/TasksControllerTests.cs:319-345`
+
+**Vấn đề:** Sau khi fix GAP-02 (TriggerTaskHandler check status), trigger task `Pending` sẽ throw `InvalidOperationException`. Test cần activate task trước.
+
+**Cách fix:**
+```csharp
+await Client.PostAsync($"/api/v1/tasks/{taskId.Data}/activate", null);
+var response = await Client.PostAsync($"/api/v1/tasks/{taskId.Data}/trigger", null);
+```
+
+---
+
+### Thứ tự fix nhóm này
+
+```
+1. API-01 — Fix CustomWebApplicationFactory (unblock toàn bộ)
+2. Chạy lại test — xác nhận số test pass tăng
+3. API-02 — Kiểm tra lại sau khi fix API-01
+4. API-03 — Fix sai endpoint trong ActiveTask test
+5. API-04, API-05, API-07 — Thêm bước activate/pause vào setup
+6. API-06 — Fix assertion log.Id → log.TaskId
 ```
 
 ---

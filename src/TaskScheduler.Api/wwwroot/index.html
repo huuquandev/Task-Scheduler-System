@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — Task Scheduler</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body>
+
+<div class="app-layout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="logo">⚡</div>
+      <span>Task Scheduler</span>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">Menu</div>
+      <a class="nav-item active" href="/index.html">
+        <span class="icon">📊</span> Dashboard
+      </a>
+      <a class="nav-item" href="/tasks.html">
+        <span class="icon">📋</span> Tasks
+      </a>
+      <a class="nav-item" href="/logs.html">
+        <span class="icon">📜</span> Execution Logs
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-avatar" id="user-avatar">U</div>
+        <div>
+          <div class="user-name" id="username-display">User</div>
+          <div class="user-role">Administrator</div>
+        </div>
+      </div>
+      <button class="btn-logout" onclick="logout()">🚪 Sign Out</button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="topbar">
+      <span class="topbar-title">Dashboard</span>
+      <div class="topbar-actions">
+        <a href="/tasks.html" class="btn btn-primary btn-sm">+ New Task</a>
+      </div>
+    </div>
+
+    <div class="page">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Overview</div>
+          <div class="page-subtitle">Real-time summary of all scheduled tasks</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="loadDashboard()">🔄 Refresh</button>
+      </div>
+
+      <!-- Stat Cards -->
+      <div class="stat-grid" id="stat-grid">
+        <div class="stat-card total">
+          <div class="stat-icon">📦</div>
+          <div class="stat-label">Total Tasks</div>
+          <div class="stat-value" id="s-total">—</div>
+        </div>
+        <div class="stat-card active">
+          <div class="stat-icon">✅</div>
+          <div class="stat-label">Active</div>
+          <div class="stat-value" id="s-active">—</div>
+        </div>
+        <div class="stat-card running">
+          <div class="stat-icon">⚡</div>
+          <div class="stat-label">Running</div>
+          <div class="stat-value" id="s-running">—</div>
+        </div>
+        <div class="stat-card paused">
+          <div class="stat-icon">⏸️</div>
+          <div class="stat-label">Paused</div>
+          <div class="stat-value" id="s-paused">—</div>
+        </div>
+        <div class="stat-card failed">
+          <div class="stat-icon">❌</div>
+          <div class="stat-label">Failed Executions</div>
+          <div class="stat-value" id="s-failed">—</div>
+        </div>
+        <div class="stat-card success">
+          <div class="stat-icon">🎯</div>
+          <div class="stat-label">Successful Executions</div>
+          <div class="stat-value" id="s-success">—</div>
+        </div>
+      </div>
+
+      <!-- Recent Tasks -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Recent Tasks</span>
+          <a href="/tasks.html" class="btn btn-ghost btn-sm">View All →</a>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Cron Expression</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="recent-tasks">
+              <tr class="loading-row"><td colspan="4"><span class="spinner"></span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast-container"></div>
+
+<script src="/js/api.js"></script>
+<script>
+  requireAuth();
+  setUsername();
+
+  async function loadDashboard() {
+    try {
+      const res = await Dashboard.get();
+      const d = res.data;
+      document.getElementById('s-total').textContent   = d.totalTasks;
+      document.getElementById('s-active').textContent  = d.activeTasks;
+      document.getElementById('s-running').textContent = d.runningTasks;
+      document.getElementById('s-paused').textContent  = d.pausedTasks;
+      document.getElementById('s-failed').textContent  = d.failedExecutions;
+      document.getElementById('s-success').textContent = d.successExecutions;
+    } catch(e) {
+      toast('Failed to load dashboard: ' + e.message, 'error');
+    }
+  }
+
+  async function loadRecentTasks() {
+    const tbody = document.getElementById('recent-tasks');
+    try {
+      const res = await Tasks.getPaged(1, 8);
+      const tasks = res.data?.items || res.data || [];
+      if (!tasks.length) {
+        tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state"><div class="icon">📭</div><p>No tasks yet</p></div></td></tr>`;
+        return;
+      }
+      tbody.innerHTML = tasks.map(t => `
+        <tr>
+          <td><a href="/tasks.html?id=${t.id}" style="color:var(--primary);font-weight:500">${t.name}</a></td>
+          <td>${statusBadge(t.status)}</td>
+          <td><code style="font-size:12px;color:var(--text-muted)">${t.cronExpression || '—'}</code></td>
+          <td>
+            <div class="action-btns">
+              <a href="/tasks.html?id=${t.id}" class="btn btn-ghost btn-sm">View</a>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    } catch(e) {
+      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--danger);padding:20px">${e.message}</td></tr>`;
+    }
+  }
+
+  loadDashboard();
+  loadRecentTasks();
+</script>
+</body>
+</html>

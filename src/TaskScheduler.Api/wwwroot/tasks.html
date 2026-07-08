@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tasks — Task Scheduler</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body>
+
+<div class="app-layout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="logo">⚡</div>
+      <span>Task Scheduler</span>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">Menu</div>
+      <a class="nav-item" href="/index.html"><span class="icon">📊</span> Dashboard</a>
+      <a class="nav-item active" href="/tasks.html"><span class="icon">📋</span> Tasks</a>
+      <a class="nav-item" href="/logs.html"><span class="icon">📜</span> Execution Logs</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-avatar" id="user-avatar">U</div>
+        <div>
+          <div class="user-name" id="username-display">User</div>
+          <div class="user-role">Administrator</div>
+        </div>
+      </div>
+      <button class="btn-logout" onclick="logout()">🚪 Sign Out</button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="topbar">
+      <span class="topbar-title">Tasks</span>
+      <div class="topbar-actions">
+        <button class="btn btn-primary btn-sm" onclick="openCreateModal()">+ New Task</button>
+      </div>
+    </div>
+
+    <div class="page">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Scheduled Tasks</div>
+          <div class="page-subtitle">Create, manage and monitor all your tasks</div>
+        </div>
+      </div>
+
+      <!-- Toolbar -->
+      <div class="toolbar" style="margin-bottom:16px">
+        <div class="search-box">
+          <span class="icon">🔍</span>
+          <input class="form-control" id="search-input" placeholder="Search tasks..." oninput="filterTasks()" />
+        </div>
+        <select class="form-control filter-select" id="filter-status" onchange="loadTasks()">
+          <option value="">All Status</option>
+          <option value="Pending">Pending</option>
+          <option value="Active">Active</option>
+          <option value="Running">Running</option>
+          <option value="Paused">Paused</option>
+          <option value="Failed">Failed</option>
+          <option value="Completed">Completed</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="loadTasks()">🔄 Refresh</button>
+      </div>
+
+      <!-- Table -->
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Cron Expression</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tasks-tbody">
+              <tr class="loading-row"><td colspan="4"><span class="spinner"></span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <!-- Pagination -->
+        <div style="padding:12px 16px;border-top:1px solid var(--border)">
+          <div class="pagination" id="pagination"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ===== MODAL: Create / Edit Task ===== -->
+<div class="modal-backdrop" id="modal-task">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-task-title">New Task</span>
+      <button class="modal-close" onclick="closeModal('modal-task')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="task-id" />
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Name <span style="color:var(--danger)">*</span></label>
+          <input class="form-control" id="task-name" placeholder="e.g. Daily Backup" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Cron Expression <span style="color:var(--danger)">*</span></label>
+          <input class="form-control" id="task-cron" placeholder="e.g. 0 2 * * *" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea class="form-control" id="task-desc" rows="2" placeholder="What does this task do?"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Command <span style="color:var(--danger)">*</span></label>
+          <input class="form-control" id="task-command" placeholder="e.g. backup.exe" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Max Retries</label>
+          <input class="form-control" id="task-retries" type="number" min="0" max="10" value="3" />
+        </div>
+      </div>
+      <div style="background:var(--surface2);border-radius:7px;padding:10px 14px;font-size:12px;color:var(--text-muted)">
+        💡 <strong>Cron guide:</strong> &nbsp;
+        <code>0 * * * *</code> = every hour &nbsp;|&nbsp;
+        <code>0 2 * * *</code> = daily 2am &nbsp;|&nbsp;
+        <code>*/5 * * * *</code> = every 5 min
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-task')">Cancel</button>
+      <button class="btn btn-primary" id="btn-save-task" onclick="saveTask()">Create Task</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: Task Detail ===== -->
+<div class="modal-backdrop" id="modal-detail">
+  <div class="modal" style="max-width:580px">
+    <div class="modal-header">
+      <span class="modal-title" id="detail-name">Task Detail</span>
+      <button class="modal-close" onclick="closeModal('modal-detail')">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- Info -->
+      <div id="detail-info"></div>
+      <!-- Actions -->
+      <div style="margin-top:20px">
+        <div class="card-title" style="margin-bottom:10px;font-size:13px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em">Actions</div>
+        <div class="action-btns" id="detail-actions"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="openLogsModal(currentTaskId)">📜 View Logs</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-detail')">Close</button>
+      <button class="btn btn-primary" onclick="openEditModal(currentTaskId)">✏️ Edit</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: Execution Logs ===== -->
+<div class="modal-backdrop" id="modal-logs">
+  <div class="modal" style="max-width:660px">
+    <div class="modal-header">
+      <span class="modal-title">Execution Logs</span>
+      <button class="modal-close" onclick="closeModal('modal-logs')">✕</button>
+    </div>
+    <div class="modal-body" style="padding:0">
+      <div class="table-wrap" style="max-height:400px;overflow-y:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Started At</th>
+              <th>Finished At</th>
+              <th>Status</th>
+              <th>Error</th>
+            </tr>
+          </thead>
+          <tbody id="logs-tbody">
+            <tr class="loading-row"><td colspan="4"><span class="spinner"></span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-logs')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: Confirm Delete ===== -->
+<div class="modal-backdrop" id="modal-confirm">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <span class="modal-title">Confirm Delete</span>
+      <button class="modal-close" onclick="closeModal('modal-confirm')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--text-muted)">Are you sure you want to delete <strong id="confirm-task-name"></strong>? This action cannot be undone.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-confirm')">Cancel</button>
+      <button class="btn btn-danger" id="btn-confirm-delete" onclick="confirmDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container"></div>
+
+<script src="/js/api.js"></script>
+<script>
+  requireAuth();
+  setUsername();
+
+  let allTasks = [];
+  let currentPage = 1;
+  let totalPages = 1;
+  let currentTaskId = null;
+  let deleteTargetId = null;
+  const PAGE_SIZE = 10;
+
+  // ===== LOAD TASKS =====
+  async function loadTasks() {
+    const tbody = document.getElementById('tasks-tbody');
+    tbody.innerHTML = `<tr class="loading-row"><td colspan="4"><span class="spinner"></span></td></tr>`;
+    const status = document.getElementById('filter-status').value;
+    try {
+      const res = await Tasks.getPaged(currentPage, PAGE_SIZE, status || null);
+      const data = res.data;
+      allTasks = data.items || data || [];
+      totalPages = data.totalPages || 1;
+      renderTasks(allTasks);
+      renderPagination();
+    } catch(e) {
+      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--danger);padding:24px">${e.message}</td></tr>`;
+    }
+  }
+
+  function renderTasks(tasks) {
+    const tbody = document.getElementById('tasks-tbody');
+    const q = document.getElementById('search-input').value.toLowerCase();
+    const filtered = q ? tasks.filter(t => t.name.toLowerCase().includes(q)) : tasks;
+
+    if (!filtered.length) {
+      tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state"><div class="icon">📭</div><p>No tasks found</p></div></td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = filtered.map(t => `
+      <tr>
+        <td>
+          <div style="font-weight:500">${t.name}</div>
+          <div style="font-size:12px;color:var(--text-muted)">${t.description || ''}</div>
+        </td>
+        <td>${statusBadge(t.status)}</td>
+        <td><code style="font-size:12px;background:var(--surface2);padding:2px 7px;border-radius:4px">${t.cronExpression || '—'}</code></td>
+        <td>
+          <div class="action-btns">
+            <button class="btn btn-ghost btn-sm" onclick="openDetailModal('${t.id}')">View</button>
+            <button class="btn btn-ghost btn-sm" onclick="openEditModal('${t.id}')">✏️</button>
+            <button class="btn btn-danger btn-sm" onclick="promptDelete('${t.id}','${t.name.replace(/'/g,"\\'")}')">🗑️</button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function filterTasks() {
+    renderTasks(allTasks);
+  }
+
+  // ===== PAGINATION =====
+  function renderPagination() {
+    const el = document.getElementById('pagination');
+    if (totalPages <= 1) { el.innerHTML = ''; return; }
+    let html = `<button class="page-btn" onclick="goPage(${currentPage-1})" ${currentPage===1?'disabled':''}>‹</button>`;
+    for (let i = 1; i <= totalPages; i++) {
+      html += `<button class="page-btn ${i===currentPage?'active':''}" onclick="goPage(${i})">${i}</button>`;
+    }
+    html += `<button class="page-btn" onclick="goPage(${currentPage+1})" ${currentPage===totalPages?'disabled':''}>›</button>`;
+    el.innerHTML = html;
+  }
+
+  function goPage(p) {
+    if (p < 1 || p > totalPages) return;
+    currentPage = p;
+    loadTasks();
+  }
+
+  // ===== MODAL HELPERS =====
+  function openModal(id) { document.getElementById(id).classList.add('open'); }
+  function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+  // Close on backdrop click
+  document.querySelectorAll('.modal-backdrop').forEach(el => {
+    el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
+  });
+
+  // ===== CREATE MODAL =====
+  function openCreateModal() {
+    document.getElementById('modal-task-title').textContent = 'New Task';
+    document.getElementById('btn-save-task').textContent = 'Create Task';
+    document.getElementById('task-id').value = '';
+    document.getElementById('task-name').value = '';
+    document.getElementById('task-cron').value = '';
+    document.getElementById('task-desc').value = '';
+    document.getElementById('task-command').value = '';
+    document.getElementById('task-retries').value = '3';
+    openModal('modal-task');
+  }
+
+  // ===== EDIT MODAL =====
+  async function openEditModal(id) {
+    closeModal('modal-detail');
+    document.getElementById('modal-task-title').textContent = 'Edit Task';
+    document.getElementById('btn-save-task').textContent = 'Save Changes';
+    try {
+      const res = await Tasks.getById(id);
+      const t = res.data;
+      document.getElementById('task-id').value = t.id;
+      document.getElementById('task-name').value = t.name;
+      document.getElementById('task-cron').value = t.cronExpression;
+      document.getElementById('task-desc').value = t.description || '';
+      document.getElementById('task-command').value = t.command || '';
+      document.getElementById('task-retries').value = t.maxRetries ?? 3;
+      openModal('modal-task');
+    } catch(e) {
+      toast('Failed to load task: ' + e.message, 'error');
+    }
+  }
+
+  // ===== SAVE TASK =====
+  async function saveTask() {
+    const id = document.getElementById('task-id').value;
+    const data = {
+      name: document.getElementById('task-name').value.trim(),
+      cronExpression: document.getElementById('task-cron').value.trim(),
+      description: document.getElementById('task-desc').value.trim(),
+      command: document.getElementById('task-command').value.trim(),
+      maxRetries: parseInt(document.getElementById('task-retries').value) || 3
+    };
+    if (!data.name || !data.cronExpression || !data.command) {
+      toast('Please fill in all required fields.', 'error'); return;
+    }
+    const btn = document.getElementById('btn-save-task');
+    btn.disabled = true; btn.textContent = 'Saving...';
+    try {
+      if (id) {
+        await Tasks.update(id, data);
+        toast('Task updated successfully.', 'success');
+      } else {
+        await Tasks.create(data);
+        toast('Task created successfully.', 'success');
+      }
+      closeModal('modal-task');
+      loadTasks();
+    } catch(e) {
+      toast(e.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = id ? 'Save Changes' : 'Create Task';
+    }
+  }
+
+  // ===== DETAIL MODAL =====
+  async function openDetailModal(id) {
+    currentTaskId = id;
+    openModal('modal-detail');
+    document.getElementById('detail-info').innerHTML = `<div style="text-align:center;padding:30px"><span class="spinner"></span></div>`;
+    document.getElementById('detail-actions').innerHTML = '';
+    try {
+      const res = await Tasks.getById(id);
+      const t = res.data;
+      document.getElementById('detail-name').textContent = t.name;
+      document.getElementById('detail-info').innerHTML = `
+        <div class="detail-row"><span class="detail-key">Status</span><span class="detail-val">${statusBadge(t.status)}</span></div>
+        <div class="detail-row"><span class="detail-key">Cron Expression</span><span class="detail-val"><code>${t.cronExpression}</code></span></div>
+        <div class="detail-row"><span class="detail-key">Description</span><span class="detail-val">${t.description || '—'}</span></div>
+        <div class="detail-row"><span class="detail-key">Command</span><span class="detail-val"><code>${t.command || '—'}</code></span></div>
+        <div class="detail-row"><span class="detail-key">Max Retries</span><span class="detail-val">${t.maxRetries ?? '—'}</span></div>
+      `;
+      renderDetailActions(t);
+    } catch(e) {
+      document.getElementById('detail-info').innerHTML = `<p style="color:var(--danger)">${e.message}</p>`;
+    }
+  }
+
+  function renderDetailActions(t) {
+    const s = (t.status || '').toLowerCase();
+    const actions = [];
+
+    if (s === 'pending') {
+      actions.push(`<button class="btn btn-success btn-sm" onclick="doAction('activate','${t.id}')">✅ Activate</button>`);
+    }
+    if (s === 'active') {
+      actions.push(`<button class="btn btn-sm" style="background:rgba(99,102,241,.15);color:var(--primary);border:1px solid rgba(99,102,241,.25)" onclick="doAction('trigger','${t.id}')">⚡ Trigger Now</button>`);
+      actions.push(`<button class="btn btn-sm" style="background:rgba(245,158,11,.15);color:var(--warning);border:1px solid rgba(245,158,11,.25)" onclick="doAction('pause','${t.id}')">⏸️ Pause</button>`);
+    }
+    if (s === 'paused') {
+      actions.push(`<button class="btn btn-success btn-sm" onclick="doAction('resume','${t.id}')">▶️ Resume</button>`);
+    }
+    if (s === 'failed') {
+      actions.push(`<button class="btn btn-success btn-sm" onclick="doAction('activate','${t.id}')">🔄 Re-activate</button>`);
+      actions.push(`<button class="btn btn-sm" style="background:rgba(99,102,241,.15);color:var(--primary);border:1px solid rgba(99,102,241,.25)" onclick="doAction('trigger','${t.id}')">⚡ Trigger Now</button>`);
+    }
+
+    document.getElementById('detail-actions').innerHTML = actions.length
+      ? actions.join('')
+      : `<span style="color:var(--text-muted);font-size:13px">No actions available for this status.</span>`;
+  }
+
+  async function doAction(action, id) {
+    const labels = { activate:'Activating...', pause:'Pausing...', resume:'Resuming...', trigger:'Triggering...' };
+    const success = { activate:'Task activated.', pause:'Task paused.', resume:'Task resumed.', trigger:'Task triggered.' };
+    try {
+      await Tasks[action](id);
+      toast(success[action], 'success');
+      closeModal('modal-detail');
+      loadTasks();
+    } catch(e) {
+      toast(e.message, 'error');
+    }
+  }
+
+  // ===== LOGS MODAL =====
+  async function openLogsModal(id) {
+    closeModal('modal-detail');
+    openModal('modal-logs');
+    const tbody = document.getElementById('logs-tbody');
+    tbody.innerHTML = `<tr class="loading-row"><td colspan="4"><span class="spinner"></span></td></tr>`;
+    try {
+      const res = await Tasks.getLogs(id);
+      const logs = res.data || [];
+      if (!logs.length) {
+        tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state"><div class="icon">📭</div><p>No execution logs yet</p></div></td></tr>`;
+        return;
+      }
+      tbody.innerHTML = logs.map(l => `
+        <tr>
+          <td style="font-size:12px">${new Date(l.startedAt).toLocaleString()}</td>
+          <td style="font-size:12px">${l.finishedAt ? new Date(l.finishedAt).toLocaleString() : '—'}</td>
+          <td>${statusBadge(l.status)}</td>
+          <td style="font-size:12px;color:var(--danger)">${l.errorMessage || '—'}</td>
+        </tr>
+      `).join('');
+    } catch(e) {
+      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--danger);padding:20px">${e.message}</td></tr>`;
+    }
+  }
+
+  // ===== DELETE =====
+  function promptDelete(id, name) {
+    deleteTargetId = id;
+    document.getElementById('confirm-task-name').textContent = `"${name}"`;
+    openModal('modal-confirm');
+  }
+
+  async function confirmDelete() {
+    if (!deleteTargetId) return;
+    const btn = document.getElementById('btn-confirm-delete');
+    btn.disabled = true; btn.textContent = 'Deleting...';
+    try {
+      await Tasks.delete(deleteTargetId);
+      toast('Task deleted.', 'success');
+      closeModal('modal-confirm');
+      loadTasks();
+    } catch(e) {
+      toast(e.message, 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Delete';
+      deleteTargetId = null;
+    }
+  }
+
+  // ===== INIT =====
+  loadTasks();
+
+  // Open detail from URL param
+  const urlId = new URLSearchParams(location.search).get('id');
+  if (urlId) setTimeout(() => openDetailModal(urlId), 300);
+</script>
+</body>
+</html>

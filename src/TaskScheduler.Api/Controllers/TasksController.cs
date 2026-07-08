@@ -18,6 +18,7 @@ using TaskScheduler.Application.Tasks.Commands.ActiveTask;
 using TaskScheduler.Application.Tasks.Queries.GetTasksPaged;
 using Microsoft.AspNetCore.Authorization;
 using TaskScheduler.Domain.Enums;
+using Microsoft.AspNetCore.RateLimiting;
 namespace TaskScheduler.Api.Controllers
 {
     [ApiController]
@@ -97,6 +98,7 @@ namespace TaskScheduler.Api.Controllers
         }
 
         [HttpPost("{id}/trigger")]
+        [EnableRateLimiting("trigger-policy")]
         [SwaggerOperation(Summary = "Trigger scheduled task.")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> Trigger([FromRoute] Guid id)

@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(dotnet list *)",
-      "Bash(dir D:\\\\Project\\\\Task-Scheduler-System *)"
+      "Bash(dir D:\\\\Project\\\\Task-Scheduler-System *)",
+      "PowerShell(dotnet test *)",
+      "Bash(mkdir -p \"D:/Project/Task-Scheduler-System/src/TaskScheduler.Api/wwwroot/css\")",
+      "Bash(mkdir -p \"D:/Project/Task-Scheduler-System/src/TaskScheduler.Api/wwwroot/js\")",
+      "PowerShell(dotnet build *)"
     ]
   }
 }

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Execution Logs — Task Scheduler</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body>
+
+<div class="app-layout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="logo">⚡</div>
+      <span>Task Scheduler</span>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">Menu</div>
+      <a class="nav-item" href="/index.html"><span class="icon">📊</span> Dashboard</a>
+      <a class="nav-item" href="/tasks.html"><span class="icon">📋</span> Tasks</a>
+      <a class="nav-item active" href="/logs.html"><span class="icon">📜</span> Execution Logs</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-avatar" id="user-avatar">U</div>
+        <div>
+          <div class="user-name" id="username-display">User</div>
+          <div class="user-role">Administrator</div>
+        </div>
+      </div>
+      <button class="btn-logout" onclick="logout()">🚪 Sign Out</button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="topbar">
+      <span class="topbar-title">Execution Logs</span>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost btn-sm" onclick="loadTaskList()">🔄 Refresh</button>
+      </div>
+    </div>
+
+    <div class="page">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Execution Logs</div>
+          <div class="page-subtitle">View execution history for each task</div>
+        </div>
+      </div>
+
+      <!-- Select Task -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-body" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+          <label class="form-label" style="margin:0;white-space:nowrap">Select Task:</label>
+          <select class="form-control" id="task-select" onchange="loadLogs()" style="max-width:320px">
+            <option value="">— Choose a task —</option>
+          </select>
+          <span style="font-size:13px;color:var(--text-muted)" id="log-count"></span>
+        </div>
+      </div>
+
+      <!-- Logs Table -->
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Started At</th>
+                <th>Finished At</th>
+                <th>Duration</th>
+                <th>Status</th>
+                <th>Error</th>
+              </tr>
+            </thead>
+            <tbody id="logs-tbody">
+              <tr><td colspan="6"><div class="empty-state"><div class="icon">👆</div><p>Select a task above to view its logs</p></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast-container"></div>
+
+<script src="/js/api.js"></script>
+<script>
+  requireAuth();
+  setUsername();
+
+  async function loadTaskList() {
+    const sel = document.getElementById('task-select');
+    const prev = sel.value;
+    try {
+      const res = await Tasks.getAll();
+      const tasks = res.data || [];
+      sel.innerHTML = `<option value="">— Choose a task —</option>` +
+        tasks.map(t => `<option value="${t.id}" ${t.id===prev?'selected':''}>${t.name} (${t.status})</option>`).join('');
+      if (prev) loadLogs();
+    } catch(e) {
+      toast('Failed to load tasks: ' + e.message, 'error');
+    }
+  }
+
+  async function loadLogs() {
+    const id = document.getElementById('task-select').value;
+    const tbody = document.getElementById('logs-tbody');
+    const countEl = document.getElementById('log-count');
+
+    if (!id) {
+      tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="icon">👆</div><p>Select a task above to view its logs</p></div></td></tr>`;
+      countEl.textContent = '';
+      return;
+    }
+
+    tbody.innerHTML = `<tr class="loading-row"><td colspan="6"><span class="spinner"></span></td></tr>`;
+
+    try {
+      const res = await Tasks.getLogs(id);
+      const logs = res.data || [];
+      countEl.textContent = `${logs.length} record${logs.length !== 1 ? 's' : ''}`;
+
+      if (!logs.length) {
+        tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="icon">📭</div><p>No execution logs for this task yet</p></div></td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = logs.map((l, i) => {
+        const started = new Date(l.startedAt);
+        const finished = l.finishedAt ? new Date(l.finishedAt) : null;
+        const duration = finished ? formatDuration(finished - started) : '—';
+        return `
+          <tr>
+            <td style="color:var(--text-muted);font-size:12px">${i + 1}</td>
+            <td style="font-size:12px">${started.toLocaleString()}</td>
+            <td style="font-size:12px">${finished ? finished.toLocaleString() : '—'}</td>
+            <td style="font-size:12px;color:var(--text-muted)">${duration}</td>
+            <td>${statusBadge(l.status)}</td>
+            <td style="font-size:12px;color:var(--danger);max-width:240px;word-break:break-word">${l.errorMessage || '—'}</td>
+          </tr>
+        `;
+      }).join('');
+    } catch(e) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--danger);padding:24px">${e.message}</td></tr>`;
+    }
+  }
+
+  function formatDuration(ms) {
+    if (ms < 1000) return `${ms}ms`;
+    if (ms < 60000) return `${(ms/1000).toFixed(1)}s`;
+    return `${Math.floor(ms/60000)}m ${Math.floor((ms%60000)/1000)}s`;
+  }
+
+  loadTaskList();
+
+  // Support ?taskId= URL param
+  const urlTaskId = new URLSearchParams(location.search).get('taskId');
+  if (urlTaskId) {
+    setTimeout(() => {
+      document.getElementById('task-select').value = urlTaskId;
+      loadLogs();
+    }, 500);
+  }
+</script>
+</body>
+</html>

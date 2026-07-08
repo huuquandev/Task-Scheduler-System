@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
 namespace TaskScheduler.Api.Extensions
 {
     public static class RateLimitExtensions
@@ -12,17 +13,21 @@ namespace TaskScheduler.Api.Extensions
         {
             services.AddRateLimiter(options =>
             {
+                options.AddFixedWindowLimiter(
+                    policyName: "trigger-policy",
+                    configureOptions =>
+                    {
+                        configureOptions.PermitLimit = 10;
+
+                        configureOptions.Window = TimeSpan.FromMinutes(1);
+
+                        configureOptions.QueueLimit = 0;
+
+                        configureOptions.QueueProcessingOrder =
+                            QueueProcessingOrder.OldestFirst;
+                    });
+
                 options.RejectionStatusCode = 429;
-                options.AddPolicy("FixedWindowPolicy", context =>
-                    RateLimitPartition.GetFixedWindowLimiter(
-                        partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                        factory: partition => new FixedWindowRateLimiterOptions
-                        {
-                            PermitLimit = 5,
-                            Window = TimeSpan.FromSeconds(10),
-                            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                            QueueLimit = 2
-                        }));
             });
 
             return services;
