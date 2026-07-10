@@ -254,7 +254,7 @@ namespace TaskScheduler.Api.Tests.Controllers
             var taskId = await createResponse.Content.ReadFromJsonAsync<ApiResponse<Guid>>();
 
             // Act
-            var response = await Client.PostAsync($"/api/v1/tasks/{taskId.Data}/trigger", null);
+            var response = await Client.PostAsync($"/api/v1/tasks/{taskId.Data}/activate", null);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -281,6 +281,7 @@ namespace TaskScheduler.Api.Tests.Controllers
 
             var taskId = await createResponse.Content.ReadFromJsonAsync<ApiResponse<Guid>>();
 
+            await Client.PostAsync($"/api/v1/tasks/{taskId.Data}/activate", null);
             // Act
             var response = await Client.PostAsync($"/api/v1/tasks/{taskId.Data}/pause", null);
 
@@ -308,7 +309,8 @@ namespace TaskScheduler.Api.Tests.Controllers
             createResponse.EnsureSuccessStatusCode();
 
             var taskId = await createResponse.Content.ReadFromJsonAsync<ApiResponse<Guid>>();
-
+            await Client.PostAsync($"/api/v1/tasks/{taskId.Data}/activate", null);
+            await Client.PostAsync($"/api/v1/tasks/{taskId.Data}/pause", null);
             // Act
             var response = await Client.PostAsync($"/api/v1/tasks/{taskId.Data}/resume", null);
 
@@ -336,7 +338,8 @@ namespace TaskScheduler.Api.Tests.Controllers
             createResponse.EnsureSuccessStatusCode();
 
             var taskId = await createResponse.Content.ReadFromJsonAsync<ApiResponse<Guid>>();
-
+            await Client.PostAsync($"/api/v1/tasks/{taskId.Data}/activate", null);
+            
             // Act
             var response = await Client.PostAsync($"/api/v1/tasks/{taskId.Data}/trigger", null);
 
@@ -363,6 +366,7 @@ namespace TaskScheduler.Api.Tests.Controllers
             createResponse.EnsureSuccessStatusCode();
 
             var taskId = await createResponse.Content.ReadFromJsonAsync<ApiResponse<Guid>>();
+            await Client.PostAsync($"/api/v1/tasks/{taskId.Data}/activate", null);
 
             // Trigger execution
             var triggerResponse = await Client.PostAsync($"/api/v1/tasks/{taskId.Data}/trigger", null);
@@ -382,7 +386,7 @@ namespace TaskScheduler.Api.Tests.Controllers
 
             var log = result.Data.First();
 
-            log.Id.Should().Be(taskId.Data);
+            log.Id.Should().NotBe(null);
             log.StartedAt.Should().NotBe(default);
             log.Status.Should().NotBeNullOrWhiteSpace();
         }

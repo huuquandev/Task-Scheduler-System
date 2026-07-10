@@ -31,7 +31,7 @@ namespace TaskScheduler.Api.Tests
                 services.RemoveAll<ApplicationDbContext>();
                 services.RemoveAll<DbContextOptions<ApplicationDbContext>>();
 
-                _connection = new SqliteConnection("DataSource=:memory:");
+                _connection = new SqliteConnection($"DataSource=testdb_{Guid.NewGuid():N};Mode=Memory;Cache=Shared");
                 _connection.Open();
 
                 services.AddDbContext<ApplicationDbContext>(options =>
@@ -53,7 +53,6 @@ namespace TaskScheduler.Api.Tests
             
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-            db.Database.EnsureDeleted();
             db.Database.EnsureCreated();
 
             return host;

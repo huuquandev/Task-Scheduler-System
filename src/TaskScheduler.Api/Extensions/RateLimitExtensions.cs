@@ -23,8 +23,7 @@ namespace TaskScheduler.Api.Extensions
 
                         configureOptions.QueueLimit = 0;
 
-                        configureOptions.QueueProcessingOrder =
-                            QueueProcessingOrder.OldestFirst;
+                        configureOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
                     });
 
                 options.RejectionStatusCode = 429;

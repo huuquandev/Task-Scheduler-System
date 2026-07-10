@@ -32,7 +32,7 @@ namespace TaskScheduler.Api.Controllers
             return Success(result, "Success");
         }
 
-        [HttpGet("{id}/logs/{logId}")]
+        [HttpGet("{id}/log/{logId}")]
         [SwaggerOperation(Summary = "Retrieves a specific execution log for a scheduled task.")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> GetDetailsExecutionLog(Guid id, Guid logId)
