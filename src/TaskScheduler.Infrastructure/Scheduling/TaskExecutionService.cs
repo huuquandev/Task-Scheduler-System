@@ -18,14 +18,16 @@ namespace TaskScheduler.Infrastructure.Scheduling
         private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<TaskExecutionService> _logger;
         private readonly IConfiguration _configuration;
+        private readonly IBackgroundJobClient _backgroundJobClient;
 
-        public TaskExecutionService(ITaskRepository repo, ITaskExecutionLogRepository logrepo, IUnitOfWork unitOfWork, ILogger<TaskExecutionService> logger, IConfiguration configuration)
+        public TaskExecutionService(ITaskRepository repo, ITaskExecutionLogRepository logrepo, IUnitOfWork unitOfWork, ILogger<TaskExecutionService> logger, IConfiguration configuration, IBackgroundJobClient backgroundJobClient)
         {
             _repo = repo;
             _logrepo = logrepo;
             _unitOfWork = unitOfWork;
             _logger = logger;
             _configuration = configuration;
+            _backgroundJobClient = backgroundJobClient;
         }
 
         // Execute the task by its ID, handling the execution flow, logging, and retry logic.
@@ -110,10 +112,11 @@ namespace TaskScheduler.Infrastructure.Scheduling
         // Trigger the task to run immediately, bypassing the scheduled time.
         public Task TriggerNow(Guid taskId)
         {
-            BackgroundJob.Enqueue<ITaskExecutionService>(
-                x => x.ExecuteTask(taskId)
-            );
+            _backgroundJobClient.Enqueue<TaskExecutionService>(
+                x => x.ExecuteTask(taskId));
+                
             _logger.LogInformation("Enqueue task {TaskId} for immediate execution", taskId);
+
             return Task.CompletedTask;
         }
 

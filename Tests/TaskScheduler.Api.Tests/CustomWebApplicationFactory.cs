@@ -13,14 +13,16 @@ using Microsoft.Extensions.Hosting;
 using TaskScheduler.Application.Interfaces;
 using TaskScheduler.Infrastructure.Persistence;
 using Moq;
+using Hangfire;
 
 namespace TaskScheduler.Api.Tests
 {
     public class CustomWebApplicationFactory : WebApplicationFactory<Program>
     {
-         private SqliteConnection? _connection;
+        private SqliteConnection? _connection;
 
         public Mock<ISchedulerService> SchedulerServiceMock { get; } = new();
+        public Mock<IBackgroundJobClient> BackgroundJobClientMock { get; } = new();
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
@@ -30,6 +32,7 @@ namespace TaskScheduler.Api.Tests
             {
                 services.RemoveAll<ApplicationDbContext>();
                 services.RemoveAll<DbContextOptions<ApplicationDbContext>>();
+                services.RemoveAll<IBackgroundJobClient>();
 
                 _connection = new SqliteConnection($"DataSource=testdb_{Guid.NewGuid():N};Mode=Memory;Cache=Shared");
                 _connection.Open();
@@ -40,8 +43,8 @@ namespace TaskScheduler.Api.Tests
                 });
 
                 services.RemoveAll<ISchedulerService>();
-
                 services.AddSingleton(SchedulerServiceMock.Object);
+                services.AddSingleton(BackgroundJobClientMock.Object);
             });
         }
 
