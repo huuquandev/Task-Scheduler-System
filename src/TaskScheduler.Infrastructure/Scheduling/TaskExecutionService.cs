@@ -203,8 +203,8 @@ namespace TaskScheduler.Infrastructure.Scheduling
         {
             var delay = GetRetryDelay(task.RetryCount);
 
-            BackgroundJob.Schedule<ITaskExecutionService>(
-                x => x.ExecuteTask(task.Id),
+            _backgroundJobClient.Schedule<ITaskExecutionService>(
+                s => s.ExecuteTask(task.Id),
                 delay
             );
 

@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
-using MediatR;
 using Swashbuckle.AspNetCore.Annotations;
 using TaskScheduler.Application.Auth.Commands.AuthLogin;
 using TaskScheduler.Application.Auth.Commands.AuthRegister;

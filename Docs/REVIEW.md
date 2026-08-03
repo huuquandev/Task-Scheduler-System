@@ -153,49 +153,297 @@ Cách verify:
 
 ### 2.4 — [LOW] Implement các Event Handler còn trống
 
-Các file sau là stub class hoàn toàn rỗng — interface chưa đăng ký implementation:
+#### Hiện trạng thực tế
 
-| File production (stub) | Interface cần implement |
-|---|---|
-| `src/.../EventHandlers/Notifications/SendEmailHandler.cs` | `INotificationHandler<TaskFailedEvent>`, `IEmailService` |
-| `src/.../EventHandlers/Notifications/SendSmsHandler.cs` | `INotificationHandler<TaskFailedEvent>`, `ISmsService` |
-| `src/.../EventHandlers/Metrics/TaskCompletedMetricsHandler.cs` | `INotificationHandler<TaskCompletedEvent>`, `IMetricsService` |
-| `src/.../EventHandlers/Metrics/TaskFailedMetricsHandler.cs` | `INotificationHandler<TaskFailedEvent>`, `IMetricsService` |
-| `src/.../EventHandlers/Logging/TaskFailedLogHandler.cs` | `INotificationHandler<TaskFailedEvent>` |
+Tất cả handler dưới đây là **stub class rỗng** — chưa implement interface, chưa đăng ký DI:
 
-Ngoài ra `TaskCompletedLogHandler` dùng `Console.WriteLine` — không phải production-ready.
+| File | Interface cần implement | Service phụ thuộc |
+|---|---|---|
+| `src/TaskScheduler.Application/EventHandlers/Notifications/SendEmailHandler.cs` | `INotificationHandler<DomainEventNotification<TaskFailedEvent>>` | `IEmailService` |
+| `src/TaskScheduler.Application/EventHandlers/Notifications/SendSmsHandler.cs` | `INotificationHandler<DomainEventNotification<TaskFailedEvent>>` | `ISmsService` |
+| `src/TaskScheduler.Application/EventHandlers/Metrics/TaskCompletedMetricsHandler.cs` | `INotificationHandler<DomainEventNotification<TaskCompletedEvent>>` | `IMetricsService` |
+| `src/TaskScheduler.Application/EventHandlers/Metrics/TaskFailedMetricsHandler.cs` | `INotificationHandler<DomainEventNotification<TaskFailedEvent>>` | `IMetricsService` |
+| `src/TaskScheduler.Application/EventHandlers/Logging/TaskFailedLogHandler.cs` | `INotificationHandler<DomainEventNotification<TaskFailedEvent>>` | `ILogger` |
 
-```
-Hướng làm nếu muốn hoàn thiện:
-1. Implement IEmailService trong Infrastructure (dùng SMTP/SendGrid).
-2. Implement IMetricsService (dùng Prometheus .NET hoặc Application Insights).
-3. Implement các handler để inject service và gọi đúng method.
-4. Đăng ký DI trong Infrastructure/DependencyInjection.cs.
-5. TaskCompletedLogHandler: thay Console.WriteLine bằng inject ILogger.
+`TaskCompletedLogHandler` đã implement interface nhưng dùng `Console.WriteLine` thay vì `ILogger`.
+
+Tham chiếu pattern đúng: xem `TaskCompletedLogHandler` — đây là handler duy nhất hoàn chỉnh, dùng `DomainEventNotification<TEvent>` wrapper, không phải `TEvent` trực tiếp.
+
+---
+
+#### Bước 1 — Fix TaskCompletedLogHandler (nhanh nhất, không phụ thuộc gì)
+
+**File:** `src/TaskScheduler.Application/EventHandlers/Logging/TaskCompletedLogHandler.cs`
+
+Thay `Console.WriteLine` bằng `ILogger`:
+
+```csharp
+public class TaskCompletedLogHandler : INotificationHandler<DomainEventNotification<TaskCompletedEvent>>
+{
+    private readonly ILogger<TaskCompletedLogHandler> _logger;
+
+    public TaskCompletedLogHandler(ILogger<TaskCompletedLogHandler> logger)
+    {
+        _logger = logger;
+    }
+
+    public Task Handle(DomainEventNotification<TaskCompletedEvent> notification, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Task completed: {TaskId}", notification.DomainEvent.TaskId);
+        return Task.CompletedTask;
+    }
+}
 ```
 
 ---
 
-### 2.5 — [LOW] NICE-to-have chưa làm
+#### Bước 2 — Implement TaskFailedLogHandler (không phụ thuộc service ngoài)
 
-**NICE-02 — API Versioning chính thức**
+**File:** `src/TaskScheduler.Application/EventHandlers/Logging/TaskFailedLogHandler.cs`
 
-```
-Hiện trạng: Route có /v1/ nhưng chỉ là string prefix, không dùng Asp.Versioning package.
-Cách làm:
-1. dotnet add package Asp.Versioning.Mvc
-2. builder.Services.AddApiVersioning(options => { options.DefaultApiVersion = new ApiVersion(1, 0); })
-3. Decorate controller với [ApiVersion("1.0")] và [Route("api/v{version:apiVersion}/tasks")]
-4. Lợi ích: /v2/ có thể song song mà không ảnh hưởng /v1/
+```csharp
+using MediatR;
+using Microsoft.Extensions.Logging;
+using TaskScheduler.Application.Common.EventNotifications;
+using TaskScheduler.Domain.Events;
+
+namespace TaskScheduler.Application.EventHandlers.Logging
+{
+    public class TaskFailedLogHandler : INotificationHandler<DomainEventNotification<TaskFailedEvent>>
+    {
+        private readonly ILogger<TaskFailedLogHandler> _logger;
+
+        public TaskFailedLogHandler(ILogger<TaskFailedLogHandler> logger)
+        {
+            _logger = logger;
+        }
+
+        public Task Handle(DomainEventNotification<TaskFailedEvent> notification, CancellationToken cancellationToken)
+        {
+            _logger.LogError("Task failed: {TaskId}. Reason: {Reason}",
+                notification.DomainEvent.TaskId,
+                notification.DomainEvent.Reason);
+            return Task.CompletedTask;
+        }
+    }
+}
 ```
 
-**NICE-03 — Email/Webhook notification khi task fail**
+Không cần đăng ký DI riêng — MediatR tự scan assembly qua `RegisterServicesFromAssembly` trong `Application/DependencyInjection.cs`.
 
+---
+
+#### Bước 3 — Implement Metrics Handlers (phụ thuộc IMetricsService)
+
+`IMetricsService` đã có interface tại `src/TaskScheduler.Application/Interfaces/IMetricsService.cs` với 2 method:
+- `IncrementCompletedTasksAsync()`
+- `IncrementFailedTasksAsync()`
+
+**3a. Implement handlers:**
+
+`src/TaskScheduler.Application/EventHandlers/Metrics/TaskCompletedMetricsHandler.cs`:
+
+```csharp
+using MediatR;
+using TaskScheduler.Application.Common.EventNotifications;
+using TaskScheduler.Application.Interfaces;
+using TaskScheduler.Domain.Events;
+
+namespace TaskScheduler.Application.EventHandlers.Metrics
+{
+    public class TaskCompletedMetricsHandler : INotificationHandler<DomainEventNotification<TaskCompletedEvent>>
+    {
+        private readonly IMetricsService _metrics;
+
+        public TaskCompletedMetricsHandler(IMetricsService metrics)
+        {
+            _metrics = metrics;
+        }
+
+        public Task Handle(DomainEventNotification<TaskCompletedEvent> notification, CancellationToken cancellationToken)
+            => _metrics.IncrementCompletedTasksAsync();
+    }
+}
 ```
-Phụ thuộc: cần làm mục 2.4 (implement SendEmailHandler) trước.
-Hiện trạng: TaskFailedEvent đã được raise trong ScheduledTask.MarkAsFailed().
-Khi implement handler, MediatR tự dispatch event → handler tự động nhận.
+
+`src/TaskScheduler.Application/EventHandlers/Metrics/TaskFailedMetricsHandler.cs`:
+
+```csharp
+using MediatR;
+using TaskScheduler.Application.Common.EventNotifications;
+using TaskScheduler.Application.Interfaces;
+using TaskScheduler.Domain.Events;
+
+namespace TaskScheduler.Application.EventHandlers.Metrics
+{
+    public class TaskFailedMetricsHandler : INotificationHandler<DomainEventNotification<TaskFailedEvent>>
+    {
+        private readonly IMetricsService _metrics;
+
+        public TaskFailedMetricsHandler(IMetricsService metrics)
+        {
+            _metrics = metrics;
+        }
+
+        public Task Handle(DomainEventNotification<TaskFailedEvent> notification, CancellationToken cancellationToken)
+            => _metrics.IncrementFailedTasksAsync();
+    }
+}
 ```
+
+**3b. Tạo concrete implementation trong Infrastructure:**
+
+Tạo file `src/TaskScheduler.Infrastructure/Services/MetricsService.cs`. Có 2 lựa chọn:
+
+- **Đơn giản (in-memory counter):** Dùng tạm trong development, không persist qua restart.
+- **Prometheus .NET:** Cài `prometheus-net.AspNetCore`, dùng `Counter.Inc()` — recommended cho production.
+
+Skeleton đơn giản trước:
+
+```csharp
+using TaskScheduler.Application.Interfaces;
+
+namespace TaskScheduler.Infrastructure.Services
+{
+    public class MetricsService : IMetricsService
+    {
+        public Task IncrementCompletedTasksAsync()
+        {
+            // TODO: thay bằng Prometheus Counter hoặc Application Insights metric
+            return Task.CompletedTask;
+        }
+
+        public Task IncrementFailedTasksAsync()
+        {
+            // TODO: thay bằng Prometheus Counter hoặc Application Insights metric
+            return Task.CompletedTask;
+        }
+    }
+}
+```
+
+**3c. Đăng ký DI** trong `src/TaskScheduler.Infrastructure/DependencyInjection.cs`, thêm vào cuối block `services.AddScoped`:
+
+```csharp
+services.AddScoped<IMetricsService, MetricsService>();
+```
+
+---
+
+#### Bước 4 — Implement Email/Webhook Notification (xem tiếp mục 2.5)
+
+`SendEmailHandler` và `SendSmsHandler` phụ thuộc `IEmailService` và `ISmsService` — xem chi tiết ở mục 2.5 bên dưới.
+
+---
+
+### 2.5 — Email/Webhook Notification khi task fail
+
+`TaskFailedEvent` đã được raise trong `ScheduledTask.MarkAsFailed()`. MediatR tự dispatch qua `DomainEventNotification<TaskFailedEvent>` wrapper. Chỉ cần implement handler + service là xong.
+
+#### Bước 1 — Implement SendEmailHandler
+
+**File:** `src/TaskScheduler.Application/EventHandlers/Notifications/SendEmailHandler.cs`
+
+`IEmailService.SendEmailAsync(EmailMessage)` đã có interface tại `src/TaskScheduler.Application/Interfaces/IEmailService.cs`. `EmailMessage` model nằm ở `TaskScheduler.Application.Common.Models`.
+
+```csharp
+using MediatR;
+using TaskScheduler.Application.Common.EventNotifications;
+using TaskScheduler.Application.Common.Models;
+using TaskScheduler.Application.Interfaces;
+using TaskScheduler.Domain.Events;
+
+namespace TaskScheduler.Application.EventHandlers.Notifications
+{
+    public class SendEmailHandler : INotificationHandler<DomainEventNotification<TaskFailedEvent>>
+    {
+        private readonly IEmailService _emailService;
+
+        public SendEmailHandler(IEmailService emailService)
+        {
+            _emailService = emailService;
+        }
+
+        public Task Handle(DomainEventNotification<TaskFailedEvent> notification, CancellationToken cancellationToken)
+        {
+            var ev = notification.DomainEvent;
+            var message = new EmailMessage
+            {
+                // TODO: lấy email người nhận từ config hoặc task settings
+                To = "admin@example.com",
+                Subject = $"Task {ev.TaskId} failed",
+                Body = $"Task {ev.TaskId} failed with reason: {ev.Reason}"
+            };
+            return _emailService.SendEmailAsync(message);
+        }
+    }
+}
+```
+
+#### Bước 2 — Tạo SmtpEmailService trong Infrastructure
+
+Tạo `src/TaskScheduler.Infrastructure/Services/SmtpEmailService.cs`:
+
+```csharp
+using System.Net;
+using System.Net.Mail;
+using Microsoft.Extensions.Configuration;
+using TaskScheduler.Application.Common.Models;
+using TaskScheduler.Application.Interfaces;
+
+namespace TaskScheduler.Infrastructure.Services
+{
+    public class SmtpEmailService : IEmailService
+    {
+        private readonly IConfiguration _config;
+
+        public SmtpEmailService(IConfiguration config)
+        {
+            _config = config;
+        }
+
+        public async Task SendEmailAsync(EmailMessage message)
+        {
+            var host = _config["Smtp:Host"];
+            var port = int.Parse(_config["Smtp:Port"] ?? "587");
+            var user = _config["Smtp:User"];
+            var pass = _config["Smtp:Password"];
+
+            using var client = new SmtpClient(host, port)
+            {
+                Credentials = new NetworkCredential(user, pass),
+                EnableSsl = true
+            };
+
+            var mail = new MailMessage(user!, message.To, message.Subject, message.Body);
+            await client.SendMailAsync(mail);
+        }
+    }
+}
+```
+
+Thêm vào `appsettings.json`:
+
+```json
+"Smtp": {
+  "Host": "smtp.gmail.com",
+  "Port": "587",
+  "User": "your@email.com",
+  "Password": "your-app-password"
+}
+```
+
+Đăng ký DI trong `Infrastructure/DependencyInjection.cs`:
+
+```csharp
+services.AddScoped<IEmailService, SmtpEmailService>();
+```
+
+#### Bước 3 — Implement SendSmsHandler (tùy chọn, có thể bỏ qua)
+
+Pattern giống `SendEmailHandler` — inject `ISmsService`, gọi `SendSmsAsync(SmsMessage)`. Cần có provider SMS thực tế (Twilio, v.v.) mới có ý nghĩa.
+
+Nếu chưa có provider: để handler rỗng hoặc log warning thay vì implement. Không nên implement nửa vời.
 
 ---
 

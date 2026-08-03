@@ -17,6 +17,7 @@ using TaskScheduler.Application.Tasks.Queries.GetTasks;
 using TaskScheduler.Application.Tasks.Queries.GetTaskExecutionLogs;
 using TaskScheduler.Application.Common.Models;
 using Xunit;
+using System.Collections.Generic;
 namespace TaskScheduler.Api.Tests.Controllers
 {
     public class TasksControllerTests : ApiTestBase
@@ -345,6 +346,40 @@ namespace TaskScheduler.Api.Tests.Controllers
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        [Fact]
+        public async Task GetExecutionLogs_Should_Return_Logs()
+        {
+            // Arrange
+            var token = await GetAuthTokenAsync();
+            Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var createRequest = new CreateTaskCommand(
+                "Backup Job",
+                "Daily backup task",
+                "0 * * * *",
+                "backup.exe",
+                3);
+
+            var createResponse = await Client.PostAsJsonAsync("/api/v1/tasks", createRequest);
+            createResponse.EnsureSuccessStatusCode();
+            var taskId = await createResponse.Content.ReadFromJsonAsync<ApiResponse<Guid>>();
+
+            // Activate rồi trigger để tạo execution log
+            await Client.PostAsync($"/api/v1/tasks/{taskId!.Data}/activate", null);
+            await Client.PostAsync($"/api/v1/tasks/{taskId.Data}/trigger", null);
+
+            // Act
+            var response = await Client.GetAsync($"/api/v1/tasks/{taskId.Data}/logs");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var logs = await response.Content.ReadFromJsonAsync<ApiResponse<List<ExecutionLogDto>>>();
+            logs.Should().NotBeNull();
+            logs!.Data.Should().NotBeNull();
+            logs.Data.Should().AllSatisfy(log => log.Id.Should().NotBeEmpty());
         }
     }
 }
