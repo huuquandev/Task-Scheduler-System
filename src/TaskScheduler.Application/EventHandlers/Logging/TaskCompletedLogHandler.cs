@@ -1,19 +1,22 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using TaskScheduler.Application.Common.EventNotifications;
 using TaskScheduler.Domain.Events;
 namespace TaskScheduler.Application.EventHandlers.Logging
 {
     public class TaskCompletedLogHandler: INotificationHandler<DomainEventNotification<TaskCompletedEvent>>
     {
-        public async Task Handle(DomainEventNotification<TaskCompletedEvent> notification, CancellationToken cancellationToken)
-        {
-            var domainEvent = notification.DomainEvent;
+        private readonly ILogger<TaskCompletedLogHandler> _logger;
 
-            Console.WriteLine($"Task completed: {domainEvent.TaskId}");
+        public TaskCompletedLogHandler(ILogger<TaskCompletedLogHandler> logger) => _logger = logger;
+
+        public Task Handle(DomainEventNotification<TaskCompletedEvent> notification, CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Task completed: {TaskId}", notification.DomainEvent.TaskId);
+
+            return Task.CompletedTask;
         }
     }
 }

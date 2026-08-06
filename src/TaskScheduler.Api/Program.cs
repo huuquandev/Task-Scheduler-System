@@ -48,7 +48,6 @@ app.UseHttpsRedirection();
 app.UseCors("AllowAll");
 app.UseSerilogRequestLogging();
 app.UseRouting();
-app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();

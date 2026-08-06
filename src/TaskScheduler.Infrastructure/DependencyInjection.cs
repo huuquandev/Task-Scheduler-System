@@ -40,6 +40,7 @@ namespace TaskScheduler.Infrastructure
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<ITokenService, TokenService>();
             services.AddScoped<ITaskExecutionService, TaskExecutionService>();
+            services.AddScoped<IMetricsService, MetricsService>();
 
             return services;
         }
