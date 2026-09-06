@@ -41,6 +41,9 @@ namespace TaskScheduler.Infrastructure
             services.AddScoped<ITokenService, TokenService>();
             services.AddScoped<ITaskExecutionService, TaskExecutionService>();
             services.AddScoped<IMetricsService, MetricsService>();
+            services.AddScoped<IEmailService, SmtpEmailService>();
+            services.AddScoped<ISmsService, NoOpSmsService>();
+            services.AddScoped<IExecutionLogService, ExecutionLogService>();
 
             return services;
         }

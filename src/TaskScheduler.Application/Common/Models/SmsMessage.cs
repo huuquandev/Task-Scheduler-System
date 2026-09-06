@@ -7,7 +7,7 @@ namespace TaskScheduler.Application.Common.Models
 {
     public class SmsMessage
     {
-        public string phoneNumber { get; init; } = default!;
-        public string message { get; init; } = default!;
+        public string PhoneNumber { get; init; } = default!;
+        public string Message { get; init; } = default!;
     }
 }

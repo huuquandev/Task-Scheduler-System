@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using MediatR;
 using TaskScheduler.Application.Common.EventNotifications;
 using TaskScheduler.Domain.Events;
+using TaskScheduler.Application.Interfaces;
 
 namespace TaskScheduler.Application.EventHandlers.Metrics
 {

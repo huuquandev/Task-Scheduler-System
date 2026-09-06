@@ -1,8 +1,10 @@
+using Microsoft.EntityFrameworkCore;
 using Serilog;
 using TaskScheduler.Api.Extensions;
 using TaskScheduler.Api.Middleware;
 using TaskScheduler.Application;
 using TaskScheduler.Infrastructure;
+using TaskScheduler.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,6 +30,17 @@ builder.Services.AddTelemetry();
 builder.Services.AddCorsConfiguration();
 builder.Services.AddRateLimiting();
 
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (!string.IsNullOrEmpty(connectionString))
+{
+    builder.Services.AddHealthChecks()
+        .AddNpgSql(connectionString);
+}
+else
+{
+    builder.Services.AddHealthChecks();
+}
+
 var app = builder.Build();
 
 app.UseHangfireDashboardConfiguration(app.Environment);
@@ -52,6 +65,14 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();
 app.MapControllers();
+app.MapHealthChecks("/health");
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await db.Database.MigrateAsync();
+}
+
 app.Run();
 
 public partial class Program

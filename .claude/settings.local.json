@@ -6,7 +6,8 @@
       "PowerShell(dotnet test *)",
       "Bash(mkdir -p \"D:/Project/Task-Scheduler-System/src/TaskScheduler.Api/wwwroot/css\")",
       "Bash(mkdir -p \"D:/Project/Task-Scheduler-System/src/TaskScheduler.Api/wwwroot/js\")",
-      "PowerShell(dotnet build *)"
+      "PowerShell(dotnet build *)",
+      "Bash(dotnet build *)"
     ]
   }
 }

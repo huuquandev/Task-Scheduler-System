@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.AspNetCore.TestHost;
@@ -27,6 +28,18 @@ namespace TaskScheduler.Api.Tests
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.UseEnvironment("Testing");
+
+            builder.ConfigureAppConfiguration((_, config) =>
+            {
+                config.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["Jwt:Secret"] = "test-secret-key-for-unit-tests-must-be-long-enough-for-hmacsha256",
+                    ["Jwt:Issuer"] = "TaskSchedulerAPI",
+                    ["Jwt:Audience"] = "TaskSchedulerClient",
+                    ["Jwt:ExpireHours"] = "1",
+                    ["ConnectionStrings:DefaultConnection"] = ""
+                });
+            });
 
             builder.ConfigureServices(services =>
             {

@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: task_scheduler
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore Task-scheduler-system.sln
+
+      - name: Build
+        run: dotnet build Task-scheduler-system.sln --no-restore -c Release
+
+      - name: Run tests
+        run: |
+          dotnet test Task-scheduler-system.sln --no-build -c Release \
+            --logger "trx;LogFileName=results.xml" \
+            --results-directory ./TestResults
+        env:
+          ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=task_scheduler;Username=postgres;Password=test_password"
+          Jwt__Secret: "ci-test-secret-at-least-32-chars-long-for-hmac-sha256"
+          Jwt__Issuer: "TaskSchedulerAPI"
+          Jwt__Audience: "TaskSchedulerClient"
+          ASPNETCORE_ENVIRONMENT: Testing
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: ./TestResults/*.xml
