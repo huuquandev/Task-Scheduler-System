@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using AutoMapper;
 using TaskScheduler.Application.Tasks.Queries.GetTaskById;
 using TaskScheduler.Application.Tasks.Queries.GetTasks;
@@ -11,11 +7,17 @@ namespace TaskScheduler.Application.Common.Mappings
 {
     public class TaskMappingProfile : Profile
     {
-         public TaskMappingProfile()
+        public TaskMappingProfile()
         {
-            CreateMap<ScheduledTask, TaskSummaryDto>();
+            CreateMap<ScheduledTask, TaskSummaryDto>()
+                .ForMember(dest => dest.Status,
+                    opt => opt.MapFrom(src => src.Status.ToString()));
 
-            CreateMap<ScheduledTask, TaskDto>();
+            CreateMap<ScheduledTask, TaskDto>()
+                .ForMember(dest => dest.Status,
+                    opt => opt.MapFrom(src => src.Status.ToString()))
+                .ForMember(dest => dest.CronExpression,
+                    opt => opt.MapFrom(src => src.CronExpression.Value));
         }
     }
 }

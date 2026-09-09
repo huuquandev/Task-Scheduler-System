@@ -18,6 +18,11 @@ services:
       retries: 5
 
   api:
+    # Production: dùng image mà pipeline CD vừa push lên GHCR
+    # (job deploy trên server chạy `docker compose pull` để kéo bản mới nhất)
+    image: ghcr.io/huuquandev/task-scheduler-api:latest
+    # Local dev: chạy `docker compose build` sẽ build từ source và tag thành
+    # đúng tên image trên, nên dev local vẫn chạy offline được.
     build:
       context: .
       dockerfile: Dockerfile
