@@ -34,19 +34,15 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/task-scheduler-api:${{ github.sha }}
 
   deploy:
-    # Chạy trên self-hosted runner (máy local Windows).
-    # Đăng ký runner tại: GitHub repo → Settings → Actions → Runners → New self-hosted runner
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs: docker
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Pull image từ GHCR
-        run: docker pull ghcr.io/${{ github.repository_owner }}/task-scheduler-api:latest
-
-      - name: Restart containers
-        working-directory: ${{ github.workspace }}
+      - name: Trigger Railway redeploy
         run: |
-          docker compose up -d --no-build
-          docker image prune -f
+          curl -s -X POST \
+            -H "Authorization: Bearer ${{ secrets.RAILWAY_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { serviceInstanceRedeploy(environmentId: \"4295f1a8-2376-48ba-9d84-e90aa953e037\", serviceId: \"f2e25a56-5e17-4645-b8f1-aeab218106d0\") }"
+            }' \
+            https://backboard.railway.app/graphql/v2
