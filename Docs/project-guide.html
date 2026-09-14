@@ -1,0 +1,1228 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Task Scheduler System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap">
+<style>
+/* ── Tokens ── */
+:root {
+  --bg:          #f7f7f5;
+  --surface:     #ffffff;
+  --surface-2:   #f0efeb;
+  --border:      #dddbd5;
+  --text:        #1a1917;
+  --text-2:      #6b6762;
+  --text-3:      #9e9a94;
+  --accent:      #1a56db;
+  --accent-dim:  #dbeafe;
+  --green:       #16a34a;
+  --green-dim:   #dcfce7;
+  --amber:       #d97706;
+  --amber-dim:   #fef3c7;
+  --red:         #dc2626;
+  --red-dim:     #fee2e2;
+  --mono:        'IBM Plex Mono', monospace;
+  --sans:        'IBM Plex Sans', system-ui, sans-serif;
+  --cond:        'IBM Plex Sans Condensed', system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:         #111110;
+    --surface:    #1c1c1a;
+    --surface-2:  #252523;
+    --border:     #333330;
+    --text:       #eeecea;
+    --text-2:     #9e9a94;
+    --text-3:     #6b6762;
+    --accent:     #60a5fa;
+    --accent-dim: #1e3a5f;
+    --green:      #4ade80;
+    --green-dim:  #14532d;
+    --amber:      #fbbf24;
+    --amber-dim:  #451a03;
+    --red:        #f87171;
+    --red-dim:    #450a0a;
+  }
+}
+:root[data-theme="dark"] {
+    --bg:         #111110;
+    --surface:    #1c1c1a;
+    --surface-2:  #252523;
+    --border:     #333330;
+    --text:       #eeecea;
+    --text-2:     #9e9a94;
+    --text-3:     #6b6762;
+    --accent:     #60a5fa;
+    --accent-dim: #1e3a5f;
+    --green:      #4ade80;
+    --green-dim:  #14532d;
+    --amber:      #fbbf24;
+    --amber-dim:  #451a03;
+    --red:        #f87171;
+    --red-dim:    #450a0a;
+}
+
+/* ── Reset & Base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; scroll-behavior: smooth; }
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ── Layout ── */
+.shell {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: 100vh;
+}
+.nav {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 32px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.nav-logo {
+  padding: 0 24px 24px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+.nav-logo .mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px; height: 32px;
+  background: var(--accent);
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+.nav-logo .mark svg { width: 18px; height: 18px; fill: #fff; }
+.nav-logo h1 {
+  font-family: var(--cond);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text);
+  line-height: 1.3;
+}
+.nav-logo p {
+  font-size: 11px;
+  color: var(--text-3);
+  margin-top: 2px;
+  font-family: var(--mono);
+}
+.nav-section-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-3);
+  padding: 8px 24px 4px;
+}
+.nav a {
+  display: block;
+  padding: 6px 24px;
+  font-size: 13px;
+  color: var(--text-2);
+  transition: color 0.12s, background 0.12s;
+  border-left: 2px solid transparent;
+}
+.nav a:hover, .nav a.active {
+  color: var(--text);
+  background: var(--surface-2);
+  border-left-color: var(--accent);
+  text-decoration: none;
+}
+.main {
+  overflow: hidden;
+}
+
+/* ── Header ── */
+.page-header {
+  border-bottom: 1px solid var(--border);
+  padding: 48px 64px 40px;
+  background: var(--surface);
+}
+.page-header .eyebrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+.page-header h2 {
+  font-family: var(--cond);
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--text);
+  text-wrap: balance;
+  line-height: 1.15;
+  margin-bottom: 12px;
+}
+.page-header p {
+  font-size: 15px;
+  color: var(--text-2);
+  max-width: 560px;
+}
+.status-bar {
+  display: flex;
+  gap: 24px;
+  margin-top: 24px;
+  flex-wrap: wrap;
+}
+.stat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.stat .dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.stat .dot.green { background: var(--green); }
+.stat .dot.amber { background: var(--amber); }
+.stat .label { color: var(--text-2); }
+.stat .val { font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+
+/* ── Content sections ── */
+.content { padding: 48px 64px; display: flex; flex-direction: column; gap: 64px; }
+
+section { display: flex; flex-direction: column; gap: 24px; }
+.section-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.section-num {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-3);
+  font-weight: 500;
+}
+.section-header h3 {
+  font-family: var(--cond);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* ── Prose ── */
+.prose { font-size: 14px; color: var(--text-2); max-width: 680px; line-height: 1.7; }
+.prose strong { color: var(--text); font-weight: 600; }
+.prose p + p { margin-top: 12px; }
+
+/* ── Code blocks ── */
+.code-block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+.code-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-3);
+  letter-spacing: 0.06em;
+}
+.copy-btn {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
+  transition: background 0.1s;
+}
+.copy-btn:hover { background: var(--accent-dim); }
+.code-block pre {
+  padding: 16px;
+  overflow-x: auto;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
+}
+.code-block code { font-family: inherit; }
+.hl-comment { color: var(--text-3); }
+.hl-key { color: var(--accent); }
+.hl-str { color: var(--green); }
+.hl-num { color: var(--amber); }
+.hl-cmd { color: var(--red); }
+
+/* ── Inline code ── */
+code {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 5px;
+  color: var(--text);
+}
+.code-block code { background: none; border: none; padding: 0; }
+
+/* ── Pipeline diagram ── */
+.pipeline {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  overflow-x: auto;
+  padding: 4px 0;
+}
+.pipe-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.pipe-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 18px;
+  text-align: center;
+  min-width: 140px;
+}
+.pipe-box .pipe-icon { font-size: 20px; margin-bottom: 6px; }
+.pipe-box .pipe-name {
+  font-family: var(--cond);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+}
+.pipe-box .pipe-desc {
+  font-size: 11px;
+  color: var(--text-3);
+  margin-top: 3px;
+  font-family: var(--mono);
+}
+.pipe-box.accent { border-color: var(--accent); background: var(--accent-dim); }
+.pipe-arrow {
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  color: var(--text-3);
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+/* ── Steps list ── */
+.steps { display: flex; flex-direction: column; gap: 0; }
+.step {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: 16px;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--border);
+}
+.step:last-child { border-bottom: none; }
+.step-num {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 2px;
+}
+.step-num span {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent);
+  background: var(--accent-dim);
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.step-body { display: flex; flex-direction: column; gap: 8px; }
+.step-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.step-desc { font-size: 13px; color: var(--text-2); line-height: 1.6; }
+.step-desc strong { color: var(--text); font-weight: 600; }
+
+/* ── Badge / tag ── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 3px;
+  vertical-align: middle;
+}
+.badge.green { background: var(--green-dim); color: var(--green); }
+.badge.amber { background: var(--amber-dim); color: var(--amber); }
+.badge.red { background: var(--red-dim); color: var(--red); }
+.badge.blue { background: var(--accent-dim); color: var(--accent); }
+
+/* ── Change table ── */
+.change-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.change-table th {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-3);
+  text-align: left;
+  padding: 8px 12px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  font-weight: 500;
+}
+.change-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+  color: var(--text-2);
+}
+.change-table tr:last-child td { border-bottom: none; }
+.change-table td:first-child { font-family: var(--mono); font-size: 12px; color: var(--text); white-space: nowrap; }
+.change-table td.reason { color: var(--text-2); line-height: 1.5; }
+
+/* ── Callout ── */
+.callout {
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 6px;
+  border-left: 3px solid;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.callout.info { background: var(--accent-dim); border-color: var(--accent); color: var(--text); }
+.callout.warn { background: var(--amber-dim); border-color: var(--amber); color: var(--text); }
+.callout.ok   { background: var(--green-dim);  border-color: var(--green);  color: var(--text); }
+.callout-icon { flex-shrink: 0; font-size: 15px; }
+.callout strong { font-weight: 600; }
+
+/* ── Lifecycle ── */
+.lifecycle {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 0;
+  align-items: center;
+}
+.lc-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.lc-pill {
+  padding: 5px 14px;
+  border-radius: 20px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid;
+}
+.lc-pill.pending  { background: var(--surface-2); border-color: var(--border); color: var(--text-2); }
+.lc-pill.active   { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+.lc-pill.running  { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+.lc-pill.failed   { background: var(--red-dim); border-color: var(--red); color: var(--red); }
+.lc-pill.paused   { background: var(--amber-dim); border-color: var(--amber); color: var(--amber); }
+.lc-pill.completed{ background: var(--surface-2); border-color: var(--border); color: var(--text-3); }
+.lc-note { font-size: 10px; font-family: var(--mono); color: var(--text-3); }
+.lc-arrow { color: var(--text-3); font-size: 14px; margin-top: -12px; }
+.lc-branch {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* ── Two-col grid ── */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+
+/* ── Info card ── */
+.info-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 20px;
+}
+.info-card h4 {
+  font-family: var(--cond);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+.info-card ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.info-card ul li {
+  font-size: 13px;
+  color: var(--text-2);
+  padding-left: 14px;
+  position: relative;
+  line-height: 1.5;
+}
+.info-card ul li::before {
+  content: '—';
+  position: absolute;
+  left: 0;
+  color: var(--text-3);
+  font-size: 11px;
+}
+.info-card ul li strong { color: var(--text); font-weight: 600; }
+
+/* ── Responsive nav ── */
+@media (max-width: 768px) {
+  .shell { grid-template-columns: 1fr; }
+  .nav { position: static; height: auto; flex-direction: row; flex-wrap: wrap; padding: 16px; border-right: none; border-bottom: 1px solid var(--border); }
+  .nav-logo { border-bottom: none; padding-bottom: 0; margin-bottom: 0; }
+  .content { padding: 32px 24px; }
+  .page-header { padding: 32px 24px 28px; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-logo">
+    <div class="mark">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2Zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16Zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7Z"/></svg>
+    </div>
+    <h1>Task Scheduler<br>System</h1>
+    <p>.NET 10 · Clean Arch</p>
+  </div>
+
+  <span class="nav-section-label">Overview</span>
+  <a href="#changes">Thay đổi đã thực hiện</a>
+  <a href="#architecture">Kiến trúc dự án</a>
+  <a href="#lifecycle">Vòng đời Task</a>
+
+  <span class="nav-section-label">CI/CD</span>
+  <a href="#pipeline">Pipeline tổng quan</a>
+  <a href="#ci-workflow">CI Workflow</a>
+  <a href="#cd-workflow">CD & Deploy</a>
+
+  <span class="nav-section-label">Vận hành</span>
+  <a href="#local-setup">Setup local</a>
+  <a href="#test-task">Test một Task</a>
+  <a href="#secrets">Secrets & Config</a>
+</nav>
+
+<!-- MAIN -->
+<main class="main">
+
+  <div class="page-header">
+    <div class="eyebrow">Project Documentation</div>
+    <h2>Task Scheduler System — Hướng dẫn đầy đủ</h2>
+    <p>Tất cả thay đổi đã làm, kiến trúc, quy trình CI/CD, deploy, và cách test một task theo đúng vòng đời.</p>
+    <div class="status-bar">
+      <div class="stat"><div class="dot green"></div><span class="label">Tests</span><span class="val">206 pass / 0 fail</span></div>
+      <div class="stat"><div class="dot green"></div><span class="label">Build</span><span class="val">Succeeded</span></div>
+      <div class="stat"><div class="dot green"></div><span class="label">Framework</span><span class="val">.NET 10</span></div>
+      <div class="stat"><div class="dot amber"></div><span class="label">Migrations</span><span class="val">Auto-run on startup</span></div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- CHANGES -->
+    <section id="changes">
+      <div class="section-header">
+        <span class="section-num">01</span>
+        <h3>Tất cả thay đổi đã thực hiện</h3>
+      </div>
+      <div class="prose">
+        <p>Dưới đây là toàn bộ những gì đã được thêm / sửa so với codebase ban đầu, cùng lý do kỹ thuật cho từng thay đổi.</p>
+      </div>
+
+      <div style="overflow-x:auto; border: 1px solid var(--border); border-radius: 6px;">
+        <table class="change-table">
+          <thead>
+            <tr>
+              <th>File / Thay đổi</th>
+              <th>Loại</th>
+              <th>Lý do cần thiết</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Domain/Events/TaskFailedEvent.cs</td>
+              <td><span class="badge amber">Fix</span></td>
+              <td class="reason">Bỏ field <code>Email</code> — entity không có email, truyền 2 tham số nhưng constructor cần 3 → crash runtime. Email nay đọc từ config.</td>
+            </tr>
+            <tr>
+              <td>Infrastructure/Scheduling/TaskExecutionService.cs<br><span style="color:var(--text-3);font-size:11px">ScheduleRetry()</span></td>
+              <td><span class="badge amber">Fix</span></td>
+              <td class="reason">Đổi <code>BackgroundJob.Schedule&lt;ITaskExecutionService&gt;(...)</code> static → <code>_backgroundJobClient.Schedule&lt;TaskExecutionService&gt;(...)</code> injected. Static API không mock được → không thể unit test nhánh retry.</td>
+            </tr>
+            <tr>
+              <td>Application/Common/Models/SmsMessage.cs</td>
+              <td><span class="badge amber">Fix</span></td>
+              <td class="reason">Properties <code>phoneNumber</code>, <code>message</code> thiếu <code>public</code> và không theo PascalCase — class không dùng được như DTO từ bên ngoài assembly.</td>
+            </tr>
+            <tr>
+              <td>EventHandlers/Notifications/SendEmailHandler.cs</td>
+              <td><span class="badge blue">Impl</span></td>
+              <td class="reason">Implement đầy đủ: đọc <code>Notifications:AdminEmail</code> từ config, guard nếu trống → không gửi. Trước đó dùng <code>ev.Email</code> (field đã bị xoá).</td>
+            </tr>
+            <tr>
+              <td>Infrastructure/Services/SmtpEmailService.cs</td>
+              <td><span class="badge green">Mới</span></td>
+              <td class="reason">Implement <code>IEmailService</code> bằng <code>System.Net.Mail.SmtpClient</code>. Gửi email thật qua SMTP khi task thất bại.</td>
+            </tr>
+            <tr>
+              <td>Infrastructure/Services/NoOpSmsService.cs</td>
+              <td><span class="badge green">Mới</span></td>
+              <td class="reason"><code>ISmsService</code> có interface nhưng không có implementation → DI container throw khi resolve. NoOp chỉ log, không crash. Thay bằng Twilio khi cần.</td>
+            </tr>
+            <tr>
+              <td>Infrastructure/Services/ExecutionLogService.cs</td>
+              <td><span class="badge green">Mới</span></td>
+              <td class="reason"><code>IExecutionLogService</code> định nghĩa sẵn nhưng không có implementation. Stub dùng <code>ILogger</code>, đủ để DI hoạt động.</td>
+            </tr>
+            <tr>
+              <td>EventHandlers/Logging/TaskCreatedLogHandler.cs</td>
+              <td><span class="badge green">Mới</span></td>
+              <td class="reason"><code>TaskCreatedEvent</code> được raise khi tạo task nhưng không có handler nào lắng nghe → domain event bị nuốt im lặng. Handler ghi log để trace.</td>
+            </tr>
+            <tr>
+              <td>Infrastructure/DependencyInjection.cs</td>
+              <td><span class="badge blue">Sửa</span></td>
+              <td class="reason">Đăng ký 4 service mới: <code>SmtpEmailService</code>, <code>NoOpSmsService</code>, <code>ExecutionLogService</code>, xác nhận <code>MetricsService</code>. Thiếu đăng ký → runtime DI exception.</td>
+            </tr>
+            <tr>
+              <td>Api/Program.cs</td>
+              <td><span class="badge blue">Sửa</span></td>
+              <td class="reason">Thêm auto EF Core migration khi startup (bỏ qua env Testing), health check <code>/health</code> + PostgreSQL probe, guard health check khi conn string trống.</td>
+            </tr>
+            <tr>
+              <td>Api/appsettings.json</td>
+              <td><span class="badge amber">Security</span></td>
+              <td class="reason">Xoá JWT secret và DB password hardcode — đây là security risk nghiêm trọng (đã commit lên git). Thay bằng placeholder rỗng.</td>
+            </tr>
+            <tr>
+              <td>Api/appsettings.Development.json <span class="badge green">Mới</span><br>Api/appsettings.Testing.json <span class="badge green">Mới</span></td>
+              <td><span class="badge blue">Config</span></td>
+              <td class="reason">Development.json chứa secrets thật cho local dev (gitignored). Testing.json chứa JWT test key để <code>WebApplicationFactory</code> khởi động được mà không cần DB thật.</td>
+            </tr>
+            <tr>
+              <td>Tests/Infrastructure.Tests/EventHandlers/<br>TaskCompletedEventHandlerTests.cs</td>
+              <td><span class="badge amber">Fix</span></td>
+              <td class="reason">File cũ dùng <code>IIMetricsService</code> (typo), sai signature <code>Handle()</code>, class <code>TaskCompletedEmailHandler</code> không tồn tại → compile error. Viết lại hoàn toàn.</td>
+            </tr>
+            <tr>
+              <td>Tests/Infrastructure.Tests/EventHandlers/<br>TaskCreatedEventHandlerTests.cs</td>
+              <td><span class="badge blue">Test</span></td>
+              <td class="reason">File trống. Viết 2 test case cho <code>TaskCreatedLogHandler</code>: verify log được gọi và không throw.</td>
+            </tr>
+            <tr>
+              <td>Tests/Api.Tests/CustomWebApplicationFactory.cs</td>
+              <td><span class="badge blue">Sửa</span></td>
+              <td class="reason">Thêm <code>ConfigureAppConfiguration</code> inject JWT test key + empty conn string, đảm bảo factory khởi động đúng môi trường Testing.</td>
+            </tr>
+            <tr>
+              <td>Dockerfile <span class="badge green">Mới</span></td>
+              <td><span class="badge green">DevOps</span></td>
+              <td class="reason">Multi-stage build: stage SDK build &amp; publish, stage runtime chỉ chứa output. Image production nhỏ (~150 MB vs ~800 MB). Cần thiết để chạy trên server / GHCR.</td>
+            </tr>
+            <tr>
+              <td>.dockerignore <span class="badge green">Mới</span></td>
+              <td><span class="badge green">DevOps</span></td>
+              <td class="reason">Loại bin/, obj/, .git/, Tests/ khỏi build context Docker → build nhanh hơn, image không chứa source thừa.</td>
+            </tr>
+            <tr>
+              <td>docker-compose.yml</td>
+              <td><span class="badge blue">Sửa</span></td>
+              <td class="reason">Thêm service <code>api</code> (image GHCR + build local), volume <code>postgres_data</code> (dữ liệu không mất khi restart), healthcheck postgres, fix DB name từ <code>tasks</code> → <code>task_scheduler</code>.</td>
+            </tr>
+            <tr>
+              <td>docker-compose.override.yml <span class="badge green">Mới</span></td>
+              <td><span class="badge green">DevOps</span></td>
+              <td class="reason">Override cho local dev: set <code>ASPNETCORE_ENVIRONMENT=Development</code> → Swagger bật, không cần chỉnh compose.yml khi dev.</td>
+            </tr>
+            <tr>
+              <td>.env.example <span class="badge green">Mới</span></td>
+              <td><span class="badge green">DevOps</span></td>
+              <td class="reason">Template cho các dev mới clone repo biết cần set những biến gì. File <code>.env</code> thật gitignored.</td>
+            </tr>
+            <tr>
+              <td>.github/workflows/ci.yml <span class="badge green">Mới</span></td>
+              <td><span class="badge green">CI/CD</span></td>
+              <td class="reason">Auto build + test khi push/PR lên main/develop. Spin up PostgreSQL container trong CI để các integration test có DB thật. Upload test results artifact.</td>
+            </tr>
+            <tr>
+              <td>.github/workflows/cd.yml <span class="badge green">Mới</span></td>
+              <td><span class="badge green">CI/CD</span></td>
+              <td class="reason">Auto build &amp; push Docker image lên GHCR khi merge vào main. Job <code>deploy</code> SSH vào server chạy <code>docker compose pull &amp;&amp; up -d</code> — tự SKIP nếu chưa cấu hình <code>DEPLOY_HOST</code>.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ARCHITECTURE -->
+    <section id="architecture">
+      <div class="section-header">
+        <span class="section-num">02</span>
+        <h3>Kiến trúc dự án</h3>
+      </div>
+      <div class="two-col">
+        <div class="info-card">
+          <h4>Layer dependencies</h4>
+          <ul>
+            <li><strong>Domain</strong> — Entity, Event, ValueObject. Không phụ thuộc gì.</li>
+            <li><strong>Application</strong> → Domain. CQRS (MediatR), Interfaces, Behaviors.</li>
+            <li><strong>Infrastructure</strong> → Application + Domain. EF Core, Hangfire, JWT, SMTP.</li>
+            <li><strong>Api</strong> → Application + Infrastructure + Domain. Controllers, Middleware.</li>
+          </ul>
+        </div>
+        <div class="info-card">
+          <h4>Key patterns</h4>
+          <ul>
+            <li><strong>Domain Events</strong> — entity gọi <code>AddDomainEvent()</code>, dispatch sau SaveChanges.</li>
+            <li><strong>MediatR Pipeline</strong> — LoggingBehavior → ValidationBehavior → Handler.</li>
+            <li><strong>Soft delete</strong> — <code>IsDeleted</code> flag, dùng <code>SoftDelete()</code>.</li>
+            <li><strong>Hangfire</strong> — job ID = Task Guid. <code>RecurringJob</code> theo cron.</li>
+            <li><strong>Retry</strong> — exponential backoff, max <code>MaxRetries</code> lần.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="info-card">
+        <h4>Event Handler map</h4>
+        <ul>
+          <li><strong>TaskCreatedEvent</strong> → <code>TaskCreatedLogHandler</code> (log info)</li>
+          <li><strong>TaskCompletedEvent</strong> → <code>TaskCompletedLogHandler</code> (log info) + <code>TaskCompletedMetricsHandler</code> (increment counter)</li>
+          <li><strong>TaskFailedEvent</strong> → <code>TaskFailedLogHandler</code> (log error) + <code>TaskFailedMetricsHandler</code> (increment counter) + <code>SendEmailHandler</code> (gửi email admin)</li>
+          <li><strong>TaskPausedEvent</strong> → (domain event raised, chưa có handler — thêm khi cần)</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- LIFECYCLE -->
+    <section id="lifecycle">
+      <div class="section-header">
+        <span class="section-num">03</span>
+        <h3>Vòng đời của một Task</h3>
+      </div>
+      <div class="prose">
+        <p>Task phải qua đủ các bước này theo đúng thứ tự. Không thể Pause một task đang Pending, không thể Trigger một task đang Running.</p>
+      </div>
+      <div style="overflow-x:auto; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 24px 28px;">
+        <div class="lifecycle">
+          <div class="lc-state">
+            <div class="lc-pill pending">Pending</div>
+            <div class="lc-note">POST /tasks</div>
+          </div>
+          <div class="lc-arrow">→</div>
+          <div class="lc-state">
+            <div class="lc-pill active">Active</div>
+            <div class="lc-note">/activate</div>
+          </div>
+          <div class="lc-arrow">→</div>
+          <div class="lc-state">
+            <div class="lc-pill running">Running</div>
+            <div class="lc-note">Hangfire job</div>
+          </div>
+          <div class="lc-arrow">→</div>
+          <div class="lc-branch">
+            <div class="lc-state">
+              <div class="lc-pill active">Active</div>
+              <div class="lc-note">success → next run</div>
+            </div>
+            <div class="lc-state" style="margin-top:8px">
+              <div class="lc-pill failed">Failed</div>
+              <div class="lc-note">retry exhausted</div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:16px; display:flex; gap:16px; flex-wrap:wrap;">
+          <div class="lc-state">
+            <div class="lc-pill paused">Paused</div>
+            <div class="lc-note">từ Active</div>
+          </div>
+          <span style="font-size:12px;color:var(--text-3);align-self:center;">— /pause → /resume → Active lại</span>
+        </div>
+      </div>
+      <div class="callout info">
+        <span class="callout-icon">ℹ</span>
+        <div><strong>Retry logic:</strong> Mỗi lần thất bại, <code>RetryCount++</code>. Nếu <code>RetryCount ≤ MaxRetries</code>: Hangfire schedule retry sau <code>min(300, 2^n × 30)</code> giây. Sau khi vượt <code>MaxRetries</code>: task chuyển sang <strong>Failed</strong> và gửi email cho admin.</div>
+      </div>
+    </section>
+
+    <!-- PIPELINE -->
+    <section id="pipeline">
+      <div class="section-header">
+        <span class="section-num">04</span>
+        <h3>Pipeline CI/CD tổng quan</h3>
+      </div>
+      <div style="overflow-x:auto; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 28px;">
+        <div class="pipeline">
+          <div class="pipe-step">
+            <div class="pipe-box">
+              <div class="pipe-icon">💻</div>
+              <div class="pipe-name">Local Dev</div>
+              <div class="pipe-desc">code + test local</div>
+            </div>
+          </div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-step">
+            <div class="pipe-box">
+              <div class="pipe-icon">📤</div>
+              <div class="pipe-name">git push</div>
+              <div class="pipe-desc">main / develop</div>
+            </div>
+          </div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-step">
+            <div class="pipe-box accent">
+              <div class="pipe-icon">⚙️</div>
+              <div class="pipe-name">CI Workflow</div>
+              <div class="pipe-desc">build + 206 tests</div>
+            </div>
+          </div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-step">
+            <div class="pipe-box accent">
+              <div class="pipe-icon">🐳</div>
+              <div class="pipe-name">CD Workflow</div>
+              <div class="pipe-desc">docker push GHCR</div>
+            </div>
+          </div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-step">
+            <div class="pipe-box">
+              <div class="pipe-icon">🖥️</div>
+              <div class="pipe-name">Server</div>
+              <div class="pipe-desc">docker compose up</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout warn">
+        <span class="callout-icon">⚠</span>
+        <div><strong>CI chạy trên cả develop và main.</strong> CD chỉ chạy khi merge vào <strong>main</strong>. Job <code>deploy</code> trong CD tự SKIP nếu chưa set <code>DEPLOY_HOST</code> secret — pipeline không bị fail.</div>
+      </div>
+    </section>
+
+    <!-- CI -->
+    <section id="ci-workflow">
+      <div class="section-header">
+        <span class="section-num">05</span>
+        <h3>CI Workflow — .github/workflows/ci.yml</h3>
+      </div>
+      <div class="prose">
+        <p>Trigger: push lên <code>main</code> hoặc <code>develop</code>, hoặc mở Pull Request vào <code>main</code>.</p>
+        <p>CI spin up một container PostgreSQL 18 để các integration test có database thật — không mock DB. Test kết quả được upload thành artifact <code>.trx</code> trên GitHub.</p>
+      </div>
+      <div class="code-block">
+        <div class="code-header">
+          <span class="code-label">.github/workflows/ci.yml — tóm tắt các bước</span>
+        </div>
+        <pre><code><span class="hl-comment"># 1. Checkout code</span>
+<span class="hl-comment"># 2. Setup .NET 10</span>
+<span class="hl-comment"># 3. dotnet restore</span>
+<span class="hl-comment"># 4. dotnet build --no-restore -c Release</span>
+<span class="hl-comment"># 5. dotnet test (206 tests)</span>
+<span class="hl-comment">#    env: ConnectionStrings__DefaultConnection=Host=localhost;...</span>
+<span class="hl-comment">#         Jwt__Secret=ci-test-secret-...  (≥32 ký tự)</span>
+<span class="hl-comment">#         ASPNETCORE_ENVIRONMENT=Testing</span>
+<span class="hl-comment"># 6. Upload test-results artifact (.trx)</span></code></pre>
+      </div>
+
+      <div class="two-col">
+        <div class="info-card">
+          <h4>Tại sao cần PostgreSQL trong CI?</h4>
+          <ul>
+            <li>Repository tests chạy trên SQLite in-memory (đủ cho unit test)</li>
+            <li>Api.Tests dùng <code>WebApplicationFactory</code> + SQLite — không cần Postgres</li>
+            <li>Nếu sau này có integration test thật với Postgres → sẵn sàng</li>
+          </ul>
+        </div>
+        <div class="info-card">
+          <h4>Tại sao cần <code>appsettings.Testing.json</code>?</h4>
+          <ul>
+            <li><code>appsettings.json</code> để JWT Secret trống (security fix)</li>
+            <li><code>WebApplicationFactory</code> set env = <code>Testing</code></li>
+            <li>ASP.NET Core tự load <code>appsettings.Testing.json</code> → có JWT key cho test</li>
+            <li>File này chứa key giả, an toàn để commit</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- CD -->
+    <section id="cd-workflow">
+      <div class="section-header">
+        <span class="section-num">06</span>
+        <h3>CD Workflow — .github/workflows/cd.yml</h3>
+      </div>
+      <div class="prose">
+        <p>Trigger: push vào <code>main</code>. Hai job: <strong>docker</strong> (build + push image) và <strong>deploy</strong> (SSH vào server).</p>
+      </div>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num"><span>1</span></div>
+          <div class="step-body">
+            <div class="step-title">Job <code>docker</code> — Build &amp; push image lên GHCR</div>
+            <div class="step-desc">Dùng <code>docker/build-push-action</code> build Dockerfile multi-stage, push lên <code>ghcr.io/huuquandev/task-scheduler-api</code> với 2 tag: <code>:latest</code> và <code>:&lt;commit-sha&gt;</code>. Dùng <code>GITHUB_TOKEN</code> tự động — không cần secret thủ công.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num"><span>2</span></div>
+          <div class="step-body">
+            <div class="step-title">Job <code>deploy</code> — SSH vào server (optional)</div>
+            <div class="step-desc">Chỉ chạy sau khi job <code>docker</code> thành công. Check <code>DEPLOY_HOST</code> secret — nếu chưa cấu hình thì <strong>SKIP</strong> (không fail). Khi có host: SSH vào server, chạy <code>docker compose pull</code> → <code>docker compose up -d</code> → <code>docker image prune -f</code>.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num"><span>3</span></div>
+          <div class="step-body">
+            <div class="step-title">Secrets cần thêm vào GitHub Actions</div>
+            <div class="step-desc">Vào <strong>GitHub repo → Settings → Secrets and variables → Actions</strong>, thêm: <code>DEPLOY_HOST</code>, <code>DEPLOY_USER</code>, <code>DEPLOY_SSH_KEY</code>, <code>DEPLOY_PATH</code>. Tuỳ chọn: <code>GHCR_TOKEN</code> + <code>DEPLOY_GHCR_USER</code> nếu repo private.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- LOCAL SETUP -->
+    <section id="local-setup">
+      <div class="section-header">
+        <span class="section-num">07</span>
+        <h3>Setup môi trường local</h3>
+      </div>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num"><span>1</span></div>
+          <div class="step-body">
+            <div class="step-title">Clone repo &amp; tạo file <code>.env</code></div>
+            <div class="step-desc">Copy <code>.env.example</code> thành <code>.env</code> rồi điền giá trị thật.</div>
+            <div class="code-block" style="margin-top:8px">
+              <div class="code-header"><span class="code-label">PowerShell</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+              <pre><code>Copy-Item .env.example .env
+<span class="hl-comment"># Mở .env, điền DB_PASSWORD, JWT_SECRET, SMTP_*, NOTIFICATIONS_ADMIN_EMAIL</span></code></pre>
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num"><span>2</span></div>
+          <div class="step-body">
+            <div class="step-title">Tạo <code>appsettings.Development.json</code></div>
+            <div class="step-desc">File này gitignored, chứa secrets thật cho <code>dotnet run</code> local (không qua Docker).</div>
+            <div class="code-block" style="margin-top:8px">
+              <div class="code-header"><span class="code-label">src/TaskScheduler.Api/appsettings.Development.json</span></div>
+              <pre><code>{
+  <span class="hl-key">"ConnectionStrings"</span>: {
+    <span class="hl-key">"DefaultConnection"</span>: <span class="hl-str">"Host=localhost;Port=5432;Database=task_scheduler;Username=postgres;Password=YOUR_PASSWORD"</span>
+  },
+  <span class="hl-key">"Jwt"</span>: { <span class="hl-key">"Secret"</span>: <span class="hl-str">"YOUR_SECRET_AT_LEAST_32_CHARS"</span>, <span class="hl-key">"ExpireHours"</span>: <span class="hl-num">72</span> },
+  <span class="hl-key">"Smtp"</span>: { <span class="hl-key">"Host"</span>: <span class="hl-str">"smtp.gmail.com"</span>, <span class="hl-key">"Port"</span>: <span class="hl-str">"587"</span>, <span class="hl-key">"User"</span>: <span class="hl-str">"ban@gmail.com"</span>, <span class="hl-key">"Password"</span>: <span class="hl-str">"app-password"</span> },
+  <span class="hl-key">"Notifications"</span>: { <span class="hl-key">"AdminEmail"</span>: <span class="hl-str">"admin@congty.com"</span> }
+}</code></pre>
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num"><span>3</span></div>
+          <div class="step-body">
+            <div class="step-title">Khởi động bằng Docker Compose (cách nhanh nhất)</div>
+            <div class="code-block" style="margin-top:8px">
+              <div class="code-header"><span class="code-label">PowerShell</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+              <pre><code><span class="hl-comment"># Build image local + chạy postgres + api</span>
+docker compose up -d --build
+
+<span class="hl-comment"># Xem logs</span>
+docker compose logs -f api
+
+<span class="hl-comment"># API sẵn sàng tại http://localhost:8080</span>
+<span class="hl-comment"># Swagger: http://localhost:8080/swagger (env=Development)</span>
+<span class="hl-comment"># Health:  http://localhost:8080/health</span></code></pre>
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num"><span>4</span></div>
+          <div class="step-body">
+            <div class="step-title">Hoặc chạy thủ công (dotnet run)</div>
+            <div class="code-block" style="margin-top:8px">
+              <div class="code-header"><span class="code-label">PowerShell</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+              <pre><code><span class="hl-comment"># Chỉ khởi động PostgreSQL</span>
+docker compose up postgres -d
+
+<span class="hl-comment"># Chạy API (tự migrate DB khi startup)</span>
+dotnet run --project src/TaskScheduler.Api/TaskScheduler.Api.csproj
+
+<span class="hl-comment"># Swagger: https://localhost:5001/swagger</span></code></pre>
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num"><span>5</span></div>
+          <div class="step-body">
+            <div class="step-title">Chạy toàn bộ test suite</div>
+            <div class="code-block" style="margin-top:8px">
+              <div class="code-header"><span class="code-label">PowerShell</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+              <pre><code>dotnet test Task-scheduler-system.sln
+<span class="hl-comment"># Expected: 206 passed, 0 failed</span></code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TEST A TASK -->
+    <section id="test-task">
+      <div class="section-header">
+        <span class="section-num">08</span>
+        <h3>Test một Task theo đúng vòng đời</h3>
+      </div>
+      <div class="prose">
+        <p>Quy trình dưới đây test toàn bộ lifecycle của một task: tạo → activate → trigger thủ công → xem log → pause → resume. Dùng Swagger UI hoặc curl/Postman đều được.</p>
+      </div>
+
+      <div class="callout info">
+        <span class="callout-icon">ℹ</span>
+        <div><strong>Bước 0 — Lấy JWT token trước.</strong> Tất cả endpoint đều yêu cầu <code>[Authorize]</code>. Đăng ký tài khoản rồi login để lấy token, paste vào header <code>Authorization: Bearer &lt;token&gt;</code>.</div>
+      </div>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num"><span>0</span></div>
+          <div class="step-body">
+            <div class="step-title">Đăng ký &amp; đăng nhập</div>
+            <div class="code-block" style="margin-top:8px">
+              <div class="code-header"><span class="code-label">POST /api/v1/auth/register</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+              <pre><code>{ <span class="hl-key">"email"</span>: <span class="hl-str">"dev@test.com"</span>, <span class="hl-key">"password"</span>: <span class="hl-str">"Test@1234"</span>, <span class="hl-key">"username"</span>: <span class="hl-str">"devuser"</span> }</code></pre>
+            </div>
+            <div class="code-block" style="margin-top:6px">
+              <div class="code-header"><span class="code-label">POST /api/v1/auth/login → lưu lại "token"</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+              <pre><code>{ <span class="hl-key">"email"</span>: <span class="hl-str">"dev@test.com"</span>, <span class="hl-key">"password"</span>: <span class="hl-str">"Test@1234"</span> }</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num"><span>1</span></div>
+          <div class="step-body">
+            <div class="step-title">Tạo task — trạng thái: <span class="badge blue">Pending</span></div>
+            <div class="step-desc">Command đơn giản: <code>echo Hello Task</code>. Cron <code>* * * * *</code> = chạy mỗi phút.</div>
+            <div class="code-block" style="margin-top:8px">
+              <div class="code-header"><span class="code-label">POST /api/v1/tasks</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+              <pre><code>{
+  <span class="hl-key">"name"</span>:           <span class="hl-str">"My First Task"</span>,
+  <span class="hl-key">"description"</span>:    <span class="hl-str">"Test vòng đời task"</span>,
+  <span class="hl-key">"cronExpression"</span>: <span class="hl-str">"* * * * *"</span>,
+  <span class="hl-key">"command"</span>:        <span class="hl-str">"echo Hello Task"</span>,
+  <span class="hl-key">"maxRetries"</span>:     <span class="hl-num">2</span>
+}
+<span class="hl-comment">// Response: { "data": "&lt;task-guid&gt;" } → lưu lại ID này</span></code></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num"><span>2</span></div>
+          <div class="step-body">
+            <div class="step-title">Kích hoạt task — trạng thái: <span class="badge green">Active</span></div>
+            <div class="step-desc">Task Pending không chạy. Phải activate trước để Hangfire đăng ký RecurringJob.</div>
+            <div class="code-block" style="margin-top:8px">
+              <div class="code-header"><span class="code-label">POST /api/v1/tasks/{id}/activate</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+              <pre><code><span class="hl-comment"># Không cần body. Response: { "data": true }</span>
+<span class="hl-comment"># Hangfire dashboard: thấy RecurringJob với ID = task-guid</span></code></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num"><span>3</span></div>
+          <div class="step-body">
+            <div class="step-title">Trigger thủ công — trạng thái: <span class="badge blue">Running</span> → <span class="badge green">Active</span></div>
+            <div class="step-desc">Không cần đợi đến phút tiếp theo. Trigger enqueue job ngay vào Hangfire.</div>
+            <div class="code-block" style="margin-top:8px">
+              <div class="code-header"><span class="code-label">POST /api/v1/tasks/{id}/trigger</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+              <pre><code><span class="hl-comment"># Rate limited: tối đa X lần/phút (RateLimitExtensions)</span>
+<span class="hl-comment"># Response: { "data": true }</span>
+<span class="hl-comment"># Xem Hangfire dashboard: /hangfire → Jobs → Enqueued</span></code></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num"><span>4</span></div>
+          <div class="step-body">
+            <div class="step-title">Xem kết quả thực thi</div>
+            <div class="code-block" style="margin-top:8px">
+              <div class="code-header"><span class="code-label">GET /api/v1/execution-logs/{taskId}</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+              <pre><code><span class="hl-comment"># Response: danh sách log, mỗi log có:</span>
+<span class="hl-comment">#   status: Success / Failed</span>
+<span class="hl-comment">#   durationMs: thời gian chạy</span>
+<span class="hl-comment">#   exitCode: 0 (success) hoặc khác</span>
+<span class="hl-comment">#   errorMessage: lý do nếu fail</span></code></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num"><span>5</span></div>
+          <div class="step-body">
+            <div class="step-title">Pause task — trạng thái: <span class="badge amber">Paused</span></div>
+            <div class="step-desc">Chỉ pause được khi đang Active. Hangfire RecurringJob bị remove.</div>
+            <div class="code-block" style="margin-top:8px">
+              <div class="code-header"><span class="code-label">POST /api/v1/tasks/{id}/pause</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+              <pre><code><span class="hl-comment"># Response: { "data": true }</span></code></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num"><span>6</span></div>
+          <div class="step-body">
+            <div class="step-title">Resume task — trạng thái: <span class="badge green">Active</span></div>
+            <div class="code-block" style="margin-top:8px">
+              <div class="code-header"><span class="code-label">POST /api/v1/tasks/{id}/resume</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+              <pre><code><span class="hl-comment"># Hangfire RecurringJob được đăng ký lại</span></code></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num"><span>7</span></div>
+          <div class="step-body">
+            <div class="step-title">Test kịch bản lỗi &amp; retry</div>
+            <div class="step-desc">Tạo task với command lỗi để xem retry logic và email notification.</div>
+            <div class="code-block" style="margin-top:8px">
+              <div class="code-header"><span class="code-label">Tạo task lỗi</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+              <pre><code>{
+  <span class="hl-key">"name"</span>:           <span class="hl-str">"Failing Task"</span>,
+  <span class="hl-key">"cronExpression"</span>: <span class="hl-str">"* * * * *"</span>,
+  <span class="hl-key">"command"</span>:        <span class="hl-str">"exit 1"</span>,
+  <span class="hl-key">"maxRetries"</span>:     <span class="hl-num">1</span>
+}
+<span class="hl-comment"># → activate → trigger</span>
+<span class="hl-comment"># Lần 1: fail → RetryCount=1, schedule retry sau 30s</span>
+<span class="hl-comment"># Lần 2: fail → RetryCount=2 > MaxRetries=1 → Status=Failed</span>
+<span class="hl-comment"># Email gửi tới Notifications:AdminEmail (nếu đã cấu hình)</span></code></pre>
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num"><span>8</span></div>
+          <div class="step-body">
+            <div class="step-title">Xem dashboard &amp; health</div>
+            <div class="step-desc">Các endpoint hữu ích để monitor hệ thống.</div>
+            <div class="code-block" style="margin-top:8px">
+              <div class="code-header"><span class="code-label">Endpoints monitor</span></div>
+              <pre><code>GET /health              <span class="hl-comment"># {"status":"Healthy","results":{"npgsql":{...}}}</span>
+GET /hangfire            <span class="hl-comment"># Dashboard Hangfire — xem jobs, retries, history</span>
+GET /api/v1/dashboard    <span class="hl-comment"># Thống kê tổng: total, active, failed, completed</span>
+GET /api/v1/tasks/paged  <span class="hl-comment"># ?page=1&pageSize=10&status=Active</span></code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECRETS -->
+    <section id="secrets">
+      <div class="section-header">
+        <span class="section-num">09</span>
+        <h3>Secrets &amp; Configuration</h3>
+      </div>
+      <div class="callout warn">
+        <span class="callout-icon">⚠</span>
+        <div><strong>JWT Secret &amp; DB Password đã bị lộ trong git history.</strong> Sau khi setup, hãy rotate: tạo JWT secret mới (<code>openssl rand -base64 48</code>) và đổi mật khẩu PostgreSQL. Cập nhật lại GitHub Actions secrets và file <code>.env</code> local.</div>
+      </div>
+      <div class="two-col" style="margin-top:4px">
+        <div class="info-card">
+          <h4>Config flow: local dev</h4>
+          <ul>
+            <li><code>appsettings.json</code> — cấu trúc, giá trị trống</li>
+            <li><code>appsettings.Development.json</code> — override với secrets thật (gitignored)</li>
+            <li>ASP.NET Core merge tự động theo priority</li>
+          </ul>
+        </div>
+        <div class="info-card">
+          <h4>Config flow: production / Docker</h4>
+          <ul>
+            <li>Secrets inject qua environment variables</li>
+            <li><code>ConnectionStrings__DefaultConnection</code> → <code>ConnectionStrings:DefaultConnection</code></li>
+            <li>Lấy giá trị từ file <code>.env</code> (docker compose) hoặc GitHub Actions secrets</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /content -->
+</main>
+</div><!-- /shell -->
+
+<script>
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'copied!';
+    setTimeout(() => btn.textContent = 'copy', 1800);
+  });
+}
+
+// Active nav highlight
+const sections = document.querySelectorAll('section[id]');
+const navLinks = document.querySelectorAll('.nav a[href^="#"]');
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      navLinks.forEach(a => a.classList.remove('active'));
+      const link = document.querySelector(`.nav a[href="#${e.target.id}"]`);
+      if (link) link.classList.add('active');
+    }
+  });
+}, { rootMargin: '-20% 0px -70% 0px' });
+sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

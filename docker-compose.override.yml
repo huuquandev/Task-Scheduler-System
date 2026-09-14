@@ -1,0 +1,9 @@
+version: '3.9'
+
+# Override cho local development — docker compose up sẽ tự merge file này
+# với docker-compose.yml. KHÔNG dùng file này trên production.
+services:
+  api:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+    # Swagger chỉ bật trong Development — truy cập http://localhost:8080/swagger

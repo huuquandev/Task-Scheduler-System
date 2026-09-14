@@ -34,37 +34,19 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/task-scheduler-api:${{ github.sha }}
 
   deploy:
-    # Chỉ chạy sau khi job docker push image thành công.
-    # Nếu chưa cấu hình secrets DEPLOY_* thì job tự SKIP (không làm hỏng pipeline).
-    runs-on: ubuntu-latest
+    # Chạy trên self-hosted runner (máy local Windows).
+    # Đăng ký runner tại: GitHub repo → Settings → Actions → Runners → New self-hosted runner
+    runs-on: self-hosted
     needs: docker
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Check deploy configuration
-        id: check
-        run: |
-          if [ -z "${{ secrets.DEPLOY_HOST }}" ]; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "::warning::DEPLOY_HOST chưa được cấu hình - bỏ qua auto-deploy. Image vẫn đã push lên GHCR."
-          fi
+      - name: Pull image từ GHCR
+        run: docker pull ghcr.io/${{ github.repository_owner }}/task-scheduler-api:latest
 
-      - name: Deploy over SSH
-        if: steps.check.outputs.skip != 'true'
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          script_stop: true
-          script: |
-            set -e
-            cd "${{ secrets.DEPLOY_PATH }}"
-            # Chỉ cần đăng nhập GHCR nếu repo là private
-            if [ -n "${{ secrets.GHCR_TOKEN }}" ]; then
-              echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.DEPLOY_GHCR_USER }}" --password-stdin
-            fi
-            docker compose pull
-            docker compose up -d
-            docker image prune -f
+      - name: Restart containers
+        working-directory: ${{ github.workspace }}
+        run: |
+          docker compose up -d --no-build
+          docker image prune -f
