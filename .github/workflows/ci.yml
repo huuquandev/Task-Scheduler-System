@@ -47,7 +47,7 @@ jobs:
             --results-directory ./TestResults
         env:
           ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=task_scheduler;Username=postgres;Password=test_password"
-          Jwt__Secret: "ci-test-secret-at-least-32-chars-long-for-hmac-sha256"
+          Jwt__Secret: "test-secret-key-for-unit-tests-must-be-long-enough-for-hmacsha256"
           Jwt__Issuer: "TaskSchedulerAPI"
           Jwt__Audience: "TaskSchedulerClient"
           ASPNETCORE_ENVIRONMENT: Testing
