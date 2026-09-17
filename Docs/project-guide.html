@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Task Scheduler System</title>
+<title>Task Scheduler System — Project Guide</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap">
 <style>
@@ -179,7 +179,7 @@ a:hover { text-decoration: underline; }
 .page-header p {
   font-size: 15px;
   color: var(--text-2);
-  max-width: 560px;
+  max-width: 620px;
 }
 .status-bar {
   display: flex;
@@ -535,19 +535,24 @@ code {
   </div>
 
   <span class="nav-section-label">Overview</span>
-  <a href="#changes">Thay đổi đã thực hiện</a>
-  <a href="#architecture">Kiến trúc dự án</a>
-  <a href="#lifecycle">Vòng đời Task</a>
+  <a href="#status">System status</a>
+  <a href="#architecture">Architecture</a>
+  <a href="#lifecycle">Task lifecycle</a>
+  <a href="#api">API reference</a>
+  <a href="#execution">Execution &amp; retry</a>
+  <a href="#security">Security</a>
 
   <span class="nav-section-label">CI/CD</span>
-  <a href="#pipeline">Pipeline tổng quan</a>
-  <a href="#ci-workflow">CI Workflow</a>
-  <a href="#cd-workflow">CD & Deploy</a>
+  <a href="#pipeline">Pipeline overview</a>
+  <a href="#ci-workflow">CI workflow</a>
+  <a href="#cd-workflow">CD &amp; deployment</a>
 
-  <span class="nav-section-label">Vận hành</span>
-  <a href="#local-setup">Setup local</a>
-  <a href="#test-task">Test một Task</a>
-  <a href="#secrets">Secrets & Config</a>
+  <span class="nav-section-label">Operations</span>
+  <a href="#local-setup">Local setup</a>
+  <a href="#test-task">Test a task E2E</a>
+  <a href="#secrets">Secrets &amp; config</a>
+  <a href="#testing">Automated tests</a>
+  <a href="#issues">Known issues</a>
 </nav>
 
 <!-- MAIN -->
@@ -555,148 +560,51 @@ code {
 
   <div class="page-header">
     <div class="eyebrow">Project Documentation</div>
-    <h2>Task Scheduler System — Hướng dẫn đầy đủ</h2>
-    <p>Tất cả thay đổi đã làm, kiến trúc, quy trình CI/CD, deploy, và cách test một task theo đúng vòng đời.</p>
+    <h2>Task Scheduler System — Complete Guide</h2>
+    <p>Everything about the project: architecture, task lifecycle, workflows, execution &amp; retry mechanics, CI/CD, deployment and operations. The full canonical reference lives in <a href="ARCHITECTURE.md">Docs/ARCHITECTURE.md</a> — this page is the visual companion.</p>
     <div class="status-bar">
-      <div class="stat"><div class="dot green"></div><span class="label">Tests</span><span class="val">206 pass / 0 fail</span></div>
-      <div class="stat"><div class="dot green"></div><span class="label">Build</span><span class="val">Succeeded</span></div>
       <div class="stat"><div class="dot green"></div><span class="label">Framework</span><span class="val">.NET 10</span></div>
+      <div class="stat"><div class="dot green"></div><span class="label">Database</span><span class="val">PostgreSQL 18</span></div>
+      <div class="stat"><div class="dot green"></div><span class="label">Scheduler</span><span class="val">Hangfire (Postgres store)</span></div>
       <div class="stat"><div class="dot amber"></div><span class="label">Migrations</span><span class="val">Auto-run on startup</span></div>
+      <div class="stat"><div class="dot green"></div><span class="label">Deploy target</span><span class="val">Railway</span></div>
     </div>
   </div>
 
   <div class="content">
 
-    <!-- CHANGES -->
-    <section id="changes">
+    <!-- STATUS -->
+    <section id="status">
       <div class="section-header">
         <span class="section-num">01</span>
-        <h3>Tất cả thay đổi đã thực hiện</h3>
+        <h3>System status — what is implemented</h3>
       </div>
       <div class="prose">
-        <p>Dưới đây là toàn bộ những gì đã được thêm / sửa so với codebase ban đầu, cùng lý do kỹ thuật cho từng thay đổi.</p>
+        <p>Feature-by-feature status, verified against the code. The execution engine, lifecycle, CI/CD and deployment are fully wired; a few seams are deliberately left as no-ops or have documented gaps (see <a href="#issues">Known issues</a>).</p>
       </div>
-
       <div style="overflow-x:auto; border: 1px solid var(--border); border-radius: 6px;">
         <table class="change-table">
           <thead>
-            <tr>
-              <th>File / Thay đổi</th>
-              <th>Loại</th>
-              <th>Lý do cần thiết</th>
-            </tr>
+            <tr><th>Capability</th><th>Status</th><th>Implementation</th></tr>
           </thead>
           <tbody>
-            <tr>
-              <td>Domain/Events/TaskFailedEvent.cs</td>
-              <td><span class="badge amber">Fix</span></td>
-              <td class="reason">Bỏ field <code>Email</code> — entity không có email, truyền 2 tham số nhưng constructor cần 3 → crash runtime. Email nay đọc từ config.</td>
-            </tr>
-            <tr>
-              <td>Infrastructure/Scheduling/TaskExecutionService.cs<br><span style="color:var(--text-3);font-size:11px">ScheduleRetry()</span></td>
-              <td><span class="badge amber">Fix</span></td>
-              <td class="reason">Đổi <code>BackgroundJob.Schedule&lt;ITaskExecutionService&gt;(...)</code> static → <code>_backgroundJobClient.Schedule&lt;TaskExecutionService&gt;(...)</code> injected. Static API không mock được → không thể unit test nhánh retry.</td>
-            </tr>
-            <tr>
-              <td>Application/Common/Models/SmsMessage.cs</td>
-              <td><span class="badge amber">Fix</span></td>
-              <td class="reason">Properties <code>phoneNumber</code>, <code>message</code> thiếu <code>public</code> và không theo PascalCase — class không dùng được như DTO từ bên ngoài assembly.</td>
-            </tr>
-            <tr>
-              <td>EventHandlers/Notifications/SendEmailHandler.cs</td>
-              <td><span class="badge blue">Impl</span></td>
-              <td class="reason">Implement đầy đủ: đọc <code>Notifications:AdminEmail</code> từ config, guard nếu trống → không gửi. Trước đó dùng <code>ev.Email</code> (field đã bị xoá).</td>
-            </tr>
-            <tr>
-              <td>Infrastructure/Services/SmtpEmailService.cs</td>
-              <td><span class="badge green">Mới</span></td>
-              <td class="reason">Implement <code>IEmailService</code> bằng <code>System.Net.Mail.SmtpClient</code>. Gửi email thật qua SMTP khi task thất bại.</td>
-            </tr>
-            <tr>
-              <td>Infrastructure/Services/NoOpSmsService.cs</td>
-              <td><span class="badge green">Mới</span></td>
-              <td class="reason"><code>ISmsService</code> có interface nhưng không có implementation → DI container throw khi resolve. NoOp chỉ log, không crash. Thay bằng Twilio khi cần.</td>
-            </tr>
-            <tr>
-              <td>Infrastructure/Services/ExecutionLogService.cs</td>
-              <td><span class="badge green">Mới</span></td>
-              <td class="reason"><code>IExecutionLogService</code> định nghĩa sẵn nhưng không có implementation. Stub dùng <code>ILogger</code>, đủ để DI hoạt động.</td>
-            </tr>
-            <tr>
-              <td>EventHandlers/Logging/TaskCreatedLogHandler.cs</td>
-              <td><span class="badge green">Mới</span></td>
-              <td class="reason"><code>TaskCreatedEvent</code> được raise khi tạo task nhưng không có handler nào lắng nghe → domain event bị nuốt im lặng. Handler ghi log để trace.</td>
-            </tr>
-            <tr>
-              <td>Infrastructure/DependencyInjection.cs</td>
-              <td><span class="badge blue">Sửa</span></td>
-              <td class="reason">Đăng ký 4 service mới: <code>SmtpEmailService</code>, <code>NoOpSmsService</code>, <code>ExecutionLogService</code>, xác nhận <code>MetricsService</code>. Thiếu đăng ký → runtime DI exception.</td>
-            </tr>
-            <tr>
-              <td>Api/Program.cs</td>
-              <td><span class="badge blue">Sửa</span></td>
-              <td class="reason">Thêm auto EF Core migration khi startup (bỏ qua env Testing), health check <code>/health</code> + PostgreSQL probe, guard health check khi conn string trống.</td>
-            </tr>
-            <tr>
-              <td>Api/appsettings.json</td>
-              <td><span class="badge amber">Security</span></td>
-              <td class="reason">Xoá JWT secret và DB password hardcode — đây là security risk nghiêm trọng (đã commit lên git). Thay bằng placeholder rỗng.</td>
-            </tr>
-            <tr>
-              <td>Api/appsettings.Development.json <span class="badge green">Mới</span><br>Api/appsettings.Testing.json <span class="badge green">Mới</span></td>
-              <td><span class="badge blue">Config</span></td>
-              <td class="reason">Development.json chứa secrets thật cho local dev (gitignored). Testing.json chứa JWT test key để <code>WebApplicationFactory</code> khởi động được mà không cần DB thật.</td>
-            </tr>
-            <tr>
-              <td>Tests/Infrastructure.Tests/EventHandlers/<br>TaskCompletedEventHandlerTests.cs</td>
-              <td><span class="badge amber">Fix</span></td>
-              <td class="reason">File cũ dùng <code>IIMetricsService</code> (typo), sai signature <code>Handle()</code>, class <code>TaskCompletedEmailHandler</code> không tồn tại → compile error. Viết lại hoàn toàn.</td>
-            </tr>
-            <tr>
-              <td>Tests/Infrastructure.Tests/EventHandlers/<br>TaskCreatedEventHandlerTests.cs</td>
-              <td><span class="badge blue">Test</span></td>
-              <td class="reason">File trống. Viết 2 test case cho <code>TaskCreatedLogHandler</code>: verify log được gọi và không throw.</td>
-            </tr>
-            <tr>
-              <td>Tests/Api.Tests/CustomWebApplicationFactory.cs</td>
-              <td><span class="badge blue">Sửa</span></td>
-              <td class="reason">Thêm <code>ConfigureAppConfiguration</code> inject JWT test key + empty conn string, đảm bảo factory khởi động đúng môi trường Testing.</td>
-            </tr>
-            <tr>
-              <td>Dockerfile <span class="badge green">Mới</span></td>
-              <td><span class="badge green">DevOps</span></td>
-              <td class="reason">Multi-stage build: stage SDK build &amp; publish, stage runtime chỉ chứa output. Image production nhỏ (~150 MB vs ~800 MB). Cần thiết để chạy trên server / GHCR.</td>
-            </tr>
-            <tr>
-              <td>.dockerignore <span class="badge green">Mới</span></td>
-              <td><span class="badge green">DevOps</span></td>
-              <td class="reason">Loại bin/, obj/, .git/, Tests/ khỏi build context Docker → build nhanh hơn, image không chứa source thừa.</td>
-            </tr>
-            <tr>
-              <td>docker-compose.yml</td>
-              <td><span class="badge blue">Sửa</span></td>
-              <td class="reason">Thêm service <code>api</code> (image GHCR + build local), volume <code>postgres_data</code> (dữ liệu không mất khi restart), healthcheck postgres, fix DB name từ <code>tasks</code> → <code>task_scheduler</code>.</td>
-            </tr>
-            <tr>
-              <td>docker-compose.override.yml <span class="badge green">Mới</span></td>
-              <td><span class="badge green">DevOps</span></td>
-              <td class="reason">Override cho local dev: set <code>ASPNETCORE_ENVIRONMENT=Development</code> → Swagger bật, không cần chỉnh compose.yml khi dev.</td>
-            </tr>
-            <tr>
-              <td>.env.example <span class="badge green">Mới</span></td>
-              <td><span class="badge green">DevOps</span></td>
-              <td class="reason">Template cho các dev mới clone repo biết cần set những biến gì. File <code>.env</code> thật gitignored.</td>
-            </tr>
-            <tr>
-              <td>.github/workflows/ci.yml <span class="badge green">Mới</span></td>
-              <td><span class="badge green">CI/CD</span></td>
-              <td class="reason">Auto build + test khi push/PR lên main/develop. Spin up PostgreSQL container trong CI để các integration test có DB thật. Upload test results artifact.</td>
-            </tr>
-            <tr>
-              <td>.github/workflows/cd.yml <span class="badge green">Mới</span></td>
-              <td><span class="badge green">CI/CD</span></td>
-              <td class="reason">Auto build &amp; push Docker image lên GHCR khi merge vào main. Job <code>deploy</code> SSH vào server chạy <code>docker compose pull &amp;&amp; up -d</code> — tự SKIP nếu chưa cấu hình <code>DEPLOY_HOST</code>.</td>
-            </tr>
+            <tr><td>Task CRUD (soft delete)</td><td><span class="badge green">Done</span></td><td class="reason">CQRS commands + EF Core repositories; <code>IsDeleted</code> flag filtered in all queries.</td></tr>
+            <tr><td>Cron scheduling</td><td><span class="badge green">Done</span></td><td class="reason">Cronos validation in the domain VO; Hangfire recurring jobs (job id = task GUID) in a PostgreSQL job store — schedules survive restarts.</td></tr>
+            <tr><td>Lifecycle (activate/pause/resume/trigger)</td><td><span class="badge green">Done</span></td><td class="reason">Guarded state transitions; each action adds/removes the Hangfire recurring job accordingly.</td></tr>
+            <tr><td>Command execution</td><td><span class="badge green">Done</span></td><td class="reason"><code>cmd.exe /c</code> (Windows) / <code>/bin/sh -c</code> (Linux); stdout/stderr, exit code, duration captured; timeout kills the process tree.</td></tr>
+            <tr><td>Retry with backoff</td><td><span class="badge green">Done</span></td><td class="reason">Delayed Hangfire jobs, <code>min(300, 2^n × 30)</code> s (60/120/240/300…); budget = <code>maxRetries</code> per task.</td></tr>
+            <tr><td>Execution logs</td><td><span class="badge green">Done</span></td><td class="reason">One <code>TaskExecutionLog</code> row per run; browsable via API and the web UI.</td></tr>
+            <tr><td>Failure email alerts</td><td><span class="badge green">Done</span></td><td class="reason"><code>TaskFailedEvent</code> → <code>SendEmailHandler</code> → <code>SmtpEmailService</code> to <code>Notifications:AdminEmail</code> (no-op when empty).</td></tr>
+            <tr><td>JWT auth (register/login)</td><td><span class="badge green">Done</span></td><td class="reason">HMAC-SHA256, 72 h expiry; PBKDF2 password hashing; login payload redacted in logs.</td></tr>
+            <tr><td>Web UI</td><td><span class="badge green">Done</span></td><td class="reason">Vanilla JS: dashboard, tasks (CRUD + lifecycle + logs), execution logs, login.</td></tr>
+            <tr><td>Observability</td><td><span class="badge green">Done</span></td><td class="reason">Serilog (console + daily file), correlation IDs, OpenTelemetry spans per request, slow-request warning &gt; 1 s, <code>/health</code> with Npgsql probe.</td></tr>
+            <tr><td>Rate limiting</td><td><span class="badge green">Done</span></td><td class="reason">Fixed window 10 req/min on <code>POST /tasks/{id}/trigger</code> (429).</td></tr>
+            <tr><td>CI (build + test)</td><td><span class="badge green">Done</span></td><td class="reason">GitHub Actions on push/PR: .NET 10, PostgreSQL 18 service container, TRX artifact.</td></tr>
+            <tr><td>CD (image + deploy)</td><td><span class="badge green">Done</span></td><td class="reason">On <code>main</code>: push image to GHCR (<code>latest</code> + commit SHA), then Railway <code>serviceInstanceRedeploy</code>.</td></tr>
+            <tr><td>Metrics counters</td><td><span class="badge amber">No-op</span></td><td class="reason">Event → handler → <code>IMetricsService</code> seam exists; implementation is a no-op (no exporter wired).</td></tr>
+            <tr><td>SMS notifications</td><td><span class="badge amber">No-op</span></td><td class="reason"><code>NoOpSmsService</code> logs only — placeholder for a real provider.</td></tr>
+            <tr><td>Redis / caching</td><td><span class="badge red">Not used</span></td><td class="reason">No caching layer; the only stores are PostgreSQL (app + Hangfire) and browser localStorage.</td></tr>
+            <tr><td>Kafka / outbox / SignalR</td><td><span class="badge red">Not built</span></td><td class="reason">Roadmap items; domain-event seam is the integration point.</td></tr>
           </tbody>
         </table>
       </div>
@@ -706,36 +614,54 @@ code {
     <section id="architecture">
       <div class="section-header">
         <span class="section-num">02</span>
-        <h3>Kiến trúc dự án</h3>
+        <h3>Architecture</h3>
       </div>
       <div class="two-col">
         <div class="info-card">
           <h4>Layer dependencies</h4>
           <ul>
-            <li><strong>Domain</strong> — Entity, Event, ValueObject. Không phụ thuộc gì.</li>
-            <li><strong>Application</strong> → Domain. CQRS (MediatR), Interfaces, Behaviors.</li>
-            <li><strong>Infrastructure</strong> → Application + Domain. EF Core, Hangfire, JWT, SMTP.</li>
-            <li><strong>Api</strong> → Application + Infrastructure + Domain. Controllers, Middleware.</li>
+            <li><strong>Domain</strong> — entities, enums, <code>CronExpression</code> VO, domain events. Zero dependencies (only Cronos).</li>
+            <li><strong>Application</strong> → Domain. CQRS (MediatR), FluentValidation, AutoMapper, pipeline behaviors, <em>all service interfaces</em>.</li>
+            <li><strong>Infrastructure</strong> → Application + Domain. EF Core/Npgsql, Hangfire (scheduler + Postgres store), command execution, JWT, SMTP, repositories.</li>
+            <li><strong>Api</strong> → everything. Controllers, middleware, DI composition root, Hangfire dashboard, static UI in <code>wwwroot</code>.</li>
           </ul>
         </div>
         <div class="info-card">
           <h4>Key patterns</h4>
           <ul>
-            <li><strong>Domain Events</strong> — entity gọi <code>AddDomainEvent()</code>, dispatch sau SaveChanges.</li>
-            <li><strong>MediatR Pipeline</strong> — LoggingBehavior → ValidationBehavior → Handler.</li>
-            <li><strong>Soft delete</strong> — <code>IsDeleted</code> flag, dùng <code>SoftDelete()</code>.</li>
-            <li><strong>Hangfire</strong> — job ID = Task Guid. <code>RecurringJob</code> theo cron.</li>
-            <li><strong>Retry</strong> — exponential backoff, max <code>MaxRetries</code> lần.</li>
+            <li><strong>Domain events</strong> — entities collect events; <code>ApplicationDbContext.SaveChangesAsync</code> flushes them as MediatR notifications <em>after</em> the write.</li>
+            <li><strong>MediatR pipeline</strong> — <code>LoggingBehavior</code> (outermost: correlation id, OTel span, slow-request warn) → <code>ValidationBehavior</code> → handler.</li>
+            <li><strong>CQRS</strong> — 8 commands + 6 queries, each an isolated handler; validators on create/update/login/register.</li>
+            <li><strong>Hangfire</strong> — recurring job id = task GUID; in-process server; Postgres job store.</li>
+            <li><strong>Soft delete</strong> — <code>IsDeleted</code> flag; repositories filter it out; fired jobs for deleted tasks no-op.</li>
           </ul>
         </div>
       </div>
       <div class="info-card">
-        <h4>Event Handler map</h4>
+        <h4>Request pipeline (a command, step by step)</h4>
+        <div class="pipeline">
+          <div class="pipe-step"><div class="pipe-box"><div class="pipe-icon">🌐</div><div class="pipe-name">Middleware</div><div class="pipe-desc">correlation id · exception guard</div></div></div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-step"><div class="pipe-box"><div class="pipe-icon">🔐</div><div class="pipe-name">JWT auth</div><div class="pipe-desc">[Authorize]</div></div></div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-step"><div class="pipe-box"><div class="pipe-icon">🎛️</div><div class="pipe-name">Controller</div><div class="pipe-desc">maps HTTP → command</div></div></div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-step"><div class="pipe-box accent"><div class="pipe-icon">⚡</div><div class="pipe-name">MediatR</div><div class="pipe-desc">log → validate → handle</div></div></div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-step"><div class="pipe-box"><div class="pipe-icon">📦</div><div class="pipe-name">Domain</div><div class="pipe-desc">entity rules + events</div></div></div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-step"><div class="pipe-box"><div class="pipe-icon">🐘</div><div class="pipe-name">PostgreSQL</div><div class="pipe-desc">EF Core + event dispatch</div></div></div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-step"><div class="pipe-box"><div class="pipe-icon">✉️</div><div class="pipe-name">Handlers</div><div class="pipe-desc">log / metrics / email</div></div></div>
+        </div>
+      </div>
+      <div class="info-card">
+        <h4>Domain event → side effect map</h4>
         <ul>
-          <li><strong>TaskCreatedEvent</strong> → <code>TaskCreatedLogHandler</code> (log info)</li>
-          <li><strong>TaskCompletedEvent</strong> → <code>TaskCompletedLogHandler</code> (log info) + <code>TaskCompletedMetricsHandler</code> (increment counter)</li>
-          <li><strong>TaskFailedEvent</strong> → <code>TaskFailedLogHandler</code> (log error) + <code>TaskFailedMetricsHandler</code> (increment counter) + <code>SendEmailHandler</code> (gửi email admin)</li>
-          <li><strong>TaskPausedEvent</strong> → (domain event raised, chưa có handler — thêm khi cần)</li>
+          <li><strong>TaskCreatedEvent</strong> (ctor) → <code>TaskCreatedLogHandler</code> (info log)</li>
+          <li><strong>TaskPausedEvent</strong> (<code>Pause()</code>) → <em>no handler — raised but unhandled</em></li>
+          <li><strong>TaskFailedEvent</strong> (<code>MarkAsFailed</code>) → <code>TaskFailedLogHandler</code> (error log) + <code>TaskFailedMetricsHandler</code> (no-op counter) + <code>SendEmailHandler</code> (admin email)</li>
+          <li><strong>TaskCompletedEvent</strong> (<code>MarkAsCompleted</code>) → logging + metrics handlers — <em>but the execution engine never calls <code>MarkAsCompleted</code></em> (see <a href="#issues">Known issues</a>)</li>
         </ul>
       </div>
     </section>
@@ -744,10 +670,10 @@ code {
     <section id="lifecycle">
       <div class="section-header">
         <span class="section-num">03</span>
-        <h3>Vòng đời của một Task</h3>
+        <h3>Task lifecycle</h3>
       </div>
       <div class="prose">
-        <p>Task phải qua đủ các bước này theo đúng thứ tự. Không thể Pause một task đang Pending, không thể Trigger một task đang Running.</p>
+        <p>Transitions are enforced by guards — in the entity (<code>Pause</code>: only from <code>Active</code>) or in the handler (activate: only from <code>Pending</code>; resume: only from <code>Paused</code>; trigger: only from <code>Active</code>/<code>Failed</code>). A created task is <strong>Pending and will not run</strong> until activated.</p>
       </div>
       <div style="overflow-x:auto; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 24px 28px;">
         <div class="lifecycle">
@@ -758,52 +684,177 @@ code {
           <div class="lc-arrow">→</div>
           <div class="lc-state">
             <div class="lc-pill active">Active</div>
-            <div class="lc-note">/activate</div>
+            <div class="lc-note">POST /{id}/activate</div>
           </div>
           <div class="lc-arrow">→</div>
           <div class="lc-state">
             <div class="lc-pill running">Running</div>
-            <div class="lc-note">Hangfire job</div>
+            <div class="lc-note">cron / trigger / retry</div>
           </div>
           <div class="lc-arrow">→</div>
           <div class="lc-branch">
             <div class="lc-state">
               <div class="lc-pill active">Active</div>
-              <div class="lc-note">success → next run</div>
+              <div class="lc-note">success → NextRunAt, retries reset</div>
             </div>
-            <div class="lc-state" style="margin-top:8px">
-              <div class="lc-pill failed">Failed</div>
-              <div class="lc-note">retry exhausted</div>
+            <div class="lc-branch">
+              <div class="lc-state">
+                <div class="lc-pill active">Active</div>
+                <div class="lc-note">failure, retries left → delayed job</div>
+              </div>
+              <div class="lc-state" style="margin-top:8px">
+                <div class="lc-pill failed">Failed</div>
+                <div class="lc-note">retries exhausted → email</div>
+              </div>
             </div>
           </div>
         </div>
-        <div style="margin-top:16px; display:flex; gap:16px; flex-wrap:wrap;">
+        <div style="margin-top:16px; display:flex; gap:16px; flex-wrap:wrap; align-items:center;">
           <div class="lc-state">
             <div class="lc-pill paused">Paused</div>
-            <div class="lc-note">từ Active</div>
+            <div class="lc-note">POST /{id}/pause (from Active)</div>
           </div>
-          <span style="font-size:12px;color:var(--text-3);align-self:center;">— /pause → /resume → Active lại</span>
+          <span style="font-size:12px;color:var(--text-3);">— then <code>POST /{id}/resume</code> → back to Active (job re-registered)</span>
         </div>
+      </div>
+      <div style="overflow-x:auto; border: 1px solid var(--border); border-radius: 6px;">
+        <table class="change-table">
+          <thead><tr><th>Transition</th><th>Endpoint</th><th>Guard</th><th>Hangfire effect</th></tr></thead>
+          <tbody>
+            <tr><td>— → Pending</td><td>POST /tasks</td><td>cron must parse (Cronos)</td><td>none (job not registered)</td></tr>
+            <tr><td>Pending → Active</td><td>POST /tasks/{id}/activate</td><td>“Only pending tasks can be activated.”</td><td>recurring job added (id = task GUID)</td></tr>
+            <tr><td>Active → Paused</td><td>POST /tasks/{id}/pause</td><td>“Only active task can be paused.” (entity)</td><td>recurring job removed</td></tr>
+            <tr><td>Paused → Active</td><td>POST /tasks/{id}/resume</td><td>“Only paused tasks can be resumed.”</td><td>recurring job re-added</td></tr>
+            <tr><td>Active/Failed → run</td><td>POST /tasks/{id}/trigger</td><td>“Only Active or Failed tasks can be triggered manually.”</td><td>one background job (rate-limited 10/min)</td></tr>
+            <tr><td>Running → Active</td><td>run succeeded</td><td>—</td><td>NextRunAt recomputed, RetryCount reset</td></tr>
+            <tr><td>Running → Active + retry</td><td>run failed, retries left</td><td><code>RetryCount ≤ MaxRetries</code> (after ++)</td><td>one delayed job (60/120/240/300 s)</td></tr>
+            <tr><td>Running → Failed</td><td>run failed, retries exhausted</td><td><code>RetryCount &gt; MaxRetries</code></td><td>recurring job <strong>not</strong> removed (known issue)</td></tr>
+          </tbody>
+        </table>
       </div>
       <div class="callout info">
         <span class="callout-icon">ℹ</span>
-        <div><strong>Retry logic:</strong> Mỗi lần thất bại, <code>RetryCount++</code>. Nếu <code>RetryCount ≤ MaxRetries</code>: Hangfire schedule retry sau <code>min(300, 2^n × 30)</code> giây. Sau khi vượt <code>MaxRetries</code>: task chuyển sang <strong>Failed</strong> và gửi email cho admin.</div>
+        <div><strong>Retry logic:</strong> every failure does <code>RetryCount++</code>. While <code>RetryCount ≤ MaxRetries</code> the task stays <code>Active</code> and a delayed Hangfire job re-runs it after <code>min(300, 2^RetryCount × 30)</code> seconds → 60 s, 120 s, 240 s, then 300 s. Once the budget is exceeded: task → <strong>Failed</strong>, <code>TaskFailedEvent</code> fires → error log + admin email. A success resets <code>RetryCount</code> to 0.</div>
+      </div>
+    </section>
+
+    <!-- API -->
+    <section id="api">
+      <div class="section-header">
+        <span class="section-num">04</span>
+        <h3>API reference</h3>
+      </div>
+      <div class="prose">
+        <p>Base URL <code>/api/v1</code>. Every response is wrapped in the envelope <code>{ "code": 0, "message": "...", "data": ... }</code>. Errors are mapped by the exception middleware: <code>ArgumentException</code>/<code>InvalidOperationException</code> → <strong>400</strong>, <code>KeyNotFoundException</code> → <strong>404</strong>, <code>UnauthorizedAccessException</code> → <strong>401</strong>, anything else → <strong>500</strong> (generic message).</p>
+      </div>
+      <div style="overflow-x:auto; border: 1px solid var(--border); border-radius: 6px;">
+        <table class="change-table">
+          <thead><tr><th>Method &amp; route</th><th>Auth</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td>POST /auth/register</td><td><span class="badge blue">public</span></td><td class="reason">Create user (username ≤ 50, email, password ≥ 8, confirm). → user GUID</td></tr>
+            <tr><td>POST /auth/login</td><td><span class="badge blue">public</span></td><td class="reason">JWT (72 h) + username/email. Payload is <code>ISensitiveRequest</code> → logged as <code>[REDACTED]</code></td></tr>
+            <tr><td>POST /tasks</td><td><span class="badge green">JWT</span></td><td class="reason">Create task <code>{name, description, cronExpression, command, maxRetries 0–10}</code> → starts <code>Pending</code> → task GUID</td></tr>
+            <tr><td>GET /tasks</td><td><span class="badge green">JWT</span></td><td class="reason">All non-deleted tasks <code>[{id, name, status}]</code></td></tr>
+            <tr><td>GET /tasks/paged</td><td><span class="badge green">JWT</span></td><td class="reason"><code>?page=&amp;pageSize=&amp;status=</code> → <code>PagedResult&lt;TaskDto&gt;</code>, ordered by CreatedAt desc</td></tr>
+            <tr><td>GET /tasks/{id}</td><td><span class="badge green">JWT</span></td><td class="reason">Task details <code>{id, name, description, status, cronExpression}</code></td></tr>
+            <tr><td>PUT /tasks/{id}</td><td><span class="badge green">JWT</span></td><td class="reason">Partial update (null = keep). Always calls <code>RescheduleTaskAsync</code></td></tr>
+            <tr><td>DELETE /tasks/{id}</td><td><span class="badge green">JWT</span></td><td class="reason">Soft delete + unschedule</td></tr>
+            <tr><td>POST /tasks/{id}/activate</td><td><span class="badge green">JWT</span></td><td class="reason"><code>Pending → Active</code>, registers recurring job</td></tr>
+            <tr><td>POST /tasks/{id}/pause</td><td><span class="badge green">JWT</span></td><td class="reason"><code>Active → Paused</code>, removes recurring job</td></tr>
+            <tr><td>POST /tasks/{id}/resume</td><td><span class="badge green">JWT</span></td><td class="reason"><code>Paused → Active</code>, re-registers recurring job</td></tr>
+            <tr><td>POST /tasks/{id}/trigger</td><td><span class="badge green">JWT</span></td><td class="reason">Immediate background run. Rate-limited: 10/min → 429</td></tr>
+            <tr><td>GET /tasks/{id}/logs</td><td><span class="badge green">JWT</span></td><td class="reason">Execution logs <code>[{id, startedAt, finishedAt, status, errorMessage}]</code></td></tr>
+            <tr><td>GET /tasks/{id}/log/{logId}</td><td><span class="badge green">JWT</span></td><td class="reason">One log: + <code>taskName, durationMs</code> (404 if the log doesn't belong to the task)</td></tr>
+            <tr><td>GET /dashboard</td><td><span class="badge green">JWT</span></td><td class="reason">Aggregate stats: totals, active/paused, running, success/failure counts</td></tr>
+            <tr><td>GET /health</td><td><span class="badge blue">public</span></td><td class="reason">Health checks + Npgsql liveness probe</td></tr>
+            <tr><td>GET /hangfire</td><td><span class="badge amber">loopback</span></td><td class="reason">Hangfire dashboard — only 127.0.0.1 / ::1</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- EXECUTION -->
+    <section id="execution">
+      <div class="section-header">
+        <span class="section-num">05</span>
+        <h3>Execution engine &amp; retry</h3>
+      </div>
+      <div class="two-col">
+        <div class="info-card">
+          <h4>How a command runs</h4>
+          <ul>
+            <li>Windows → <code>cmd.exe /c &lt;command&gt;</code>; Linux → <code>/bin/sh -c "&lt;command&gt;"</code></li>
+            <li>stdout &amp; stderr read concurrently (no pipe deadlock), no window</li>
+            <li><strong>Timeout</strong> <code>TaskExecution:TimeoutSeconds</code> (default 300 s) → kills the whole process tree → <code>TimeoutException</code></li>
+            <li><strong>Success ⇔ exit code 0</strong> (output content is irrelevant)</li>
+            <li>Log row: <code>errorMessage</code> carries stderr (or “Command exited with code N”), <code>durationMs</code>, <code>exitCode</code></li>
+          </ul>
+        </div>
+        <div class="info-card">
+          <h4>Retry backoff (delay uses the already-incremented RetryCount)</h4>
+          <ul>
+            <li>Failure 1 → RetryCount 1 → wait <strong>60 s</strong></li>
+            <li>Failure 2 → RetryCount 2 → wait <strong>120 s</strong></li>
+            <li>Failure 3 → RetryCount 3 → wait <strong>240 s</strong></li>
+            <li>Failure 4+ → capped at <strong>300 s</strong></li>
+            <li><code>maxRetries = N</code> → N + 1 total attempts; <code>maxRetries = 0</code> → first failure = <code>Failed</code></li>
+          </ul>
+        </div>
+      </div>
+      <div class="info-card">
+        <h4>Where Hangfire sits</h4>
+        <ul>
+          <li><strong>Storage</strong> = PostgreSQL (same DB as app data) → recurring schedules survive an app restart; only EF migrations run at boot</li>
+          <li><strong>Server</strong> = in-process (<code>AddHangfireServer</code>), single default queue</li>
+          <li><strong>Recurring jobs</strong>: id = task GUID, cron = task's cron string — <code>AddOrUpdate</code> on activate/resume/update, removed on pause/delete</li>
+          <li><strong>Background jobs</strong>: manual trigger (<code>Enqueue</code>) and delayed retries (<code>Schedule</code>)</li>
+          <li><strong>Dashboard</strong>: <code>/hangfire</code>, loopback-IP-only filter (no credentials)</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- SECURITY -->
+    <section id="security">
+      <div class="section-header">
+        <span class="section-num">06</span>
+        <h3>Security</h3>
+      </div>
+      <div class="two-col">
+        <div class="info-card">
+          <h4>Authentication &amp; data protection</h4>
+          <ul>
+            <li><strong>JWT</strong> HMAC-SHA256 (<code>Jwt:Secret</code>, ≥ 32 chars), issuer <code>TaskSchedulerAPI</code>, audience <code>TaskSchedulerClient</code>, 72 h expiry; claims: user id, username, email</li>
+            <li><strong>Passwords</strong> PBKDF2: 10 000 iterations, SHA-256, 16-byte salt, 32-byte hash, stored <code>base64(salt ‖ hash)</code></li>
+            <li><strong>[Authorize]</strong> on all task/log/dashboard endpoints; only auth, health, UI and the (loopback-only) Hangfire dashboard are open</li>
+            <li><strong>Sensitive payloads</strong> redacted in logs via <code>ISensitiveRequest</code> (login)</li>
+          </ul>
+        </div>
+        <div class="info-card">
+          <h4>Threat surface</h4>
+          <ul>
+            <li><strong>Rate limit</strong> on manual trigger: fixed window 10 req/min → 429</li>
+            <li><strong>Hangfire dashboard</strong>: IP filter allows <code>127.0.0.1</code>/<code>::1</code> only — unreachable remotely even behind a proxy</li>
+            <li><strong>Secrets</strong>: none committed; <code>appsettings.json</code> holds empty placeholders, real values come from env vars</li>
+            <li><strong>Error leakage</strong>: unknown exceptions → generic 500; validation/state errors expose their message</li>
+            <li><strong>CORS</strong>: <code>AllowAll</code> — acceptable for this deployment shape, tighten if the UI moves to its own origin</li>
+          </ul>
+        </div>
       </div>
     </section>
 
     <!-- PIPELINE -->
     <section id="pipeline">
       <div class="section-header">
-        <span class="section-num">04</span>
-        <h3>Pipeline CI/CD tổng quan</h3>
+        <span class="section-num">07</span>
+        <h3>CI/CD pipeline overview</h3>
       </div>
       <div style="overflow-x:auto; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 28px;">
         <div class="pipeline">
           <div class="pipe-step">
             <div class="pipe-box">
               <div class="pipe-icon">💻</div>
-              <div class="pipe-name">Local Dev</div>
-              <div class="pipe-desc">code + test local</div>
+              <div class="pipe-name">Local dev</div>
+              <div class="pipe-desc">dotnet run / compose</div>
             </div>
           </div>
           <div class="pipe-arrow">→</div>
@@ -818,76 +869,92 @@ code {
           <div class="pipe-step">
             <div class="pipe-box accent">
               <div class="pipe-icon">⚙️</div>
-              <div class="pipe-name">CI Workflow</div>
-              <div class="pipe-desc">build + 206 tests</div>
+              <div class="pipe-name">CI</div>
+              <div class="pipe-desc">build + test vs Postgres 18</div>
+            </div>
+          </div>
+          <div class="pipe-arrow">→ <span style="font-size:10px; font-family:var(--mono); color:var(--text-3);">main</span></div>
+          <div class="pipe-step">
+            <div class="pipe-box accent">
+              <div class="pipe-icon">🐳</div>
+              <div class="pipe-name">CD · docker</div>
+              <div class="pipe-desc">push → GHCR (latest + sha)</div>
             </div>
           </div>
           <div class="pipe-arrow">→</div>
           <div class="pipe-step">
             <div class="pipe-box accent">
-              <div class="pipe-icon">🐳</div>
-              <div class="pipe-name">CD Workflow</div>
-              <div class="pipe-desc">docker push GHCR</div>
+              <div class="pipe-icon">🚄</div>
+              <div class="pipe-name">CD · deploy</div>
+              <div class="pipe-desc">Railway redeploy (GraphQL)</div>
             </div>
           </div>
           <div class="pipe-arrow">→</div>
           <div class="pipe-step">
             <div class="pipe-box">
               <div class="pipe-icon">🖥️</div>
-              <div class="pipe-name">Server</div>
-              <div class="pipe-desc">docker compose up</div>
+              <div class="pipe-name">Railway</div>
+              <div class="pipe-desc">pulls image · redeploys</div>
             </div>
           </div>
         </div>
       </div>
-
       <div class="callout warn">
         <span class="callout-icon">⚠</span>
-        <div><strong>CI chạy trên cả develop và main.</strong> CD chỉ chạy khi merge vào <strong>main</strong>. Job <code>deploy</code> trong CD tự SKIP nếu chưa set <code>DEPLOY_HOST</code> secret — pipeline không bị fail.</div>
+        <div><strong>CI runs on every push to <code>main</code>/<code>develop</code> and on PRs to <code>main</code>.</strong> CD runs <strong>only on push to <code>main</code></strong>. The deploy job needs exactly one secret: <code>RAILWAY_TOKEN</code>. GHCR auth uses the built-in <code>GITHUB_TOKEN</code> — no extra secrets.</div>
       </div>
     </section>
 
     <!-- CI -->
     <section id="ci-workflow">
       <div class="section-header">
-        <span class="section-num">05</span>
-        <h3>CI Workflow — .github/workflows/ci.yml</h3>
+        <span class="section-num">08</span>
+        <h3>CI workflow — .github/workflows/ci.yml</h3>
       </div>
-      <div class="prose">
-        <p>Trigger: push lên <code>main</code> hoặc <code>develop</code>, hoặc mở Pull Request vào <code>main</code>.</p>
-        <p>CI spin up một container PostgreSQL 18 để các integration test có database thật — không mock DB. Test kết quả được upload thành artifact <code>.trx</code> trên GitHub.</p>
-      </div>
-      <div class="code-block">
-        <div class="code-header">
-          <span class="code-label">.github/workflows/ci.yml — tóm tắt các bước</span>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num"><span>1</span></div>
+          <div class="step-body">
+            <div class="step-title">Checkout + setup</div>
+            <div class="step-desc"><code>actions/checkout@v4</code>, <code>actions/setup-dotnet@v4</code> with <code>10.0.x</code>. A <strong>PostgreSQL 18 service container</strong> runs alongside (db <code>task_scheduler</code>, healthchecked with <code>pg_isready</code>).</div>
+          </div>
         </div>
-        <pre><code><span class="hl-comment"># 1. Checkout code</span>
-<span class="hl-comment"># 2. Setup .NET 10</span>
-<span class="hl-comment"># 3. dotnet restore</span>
-<span class="hl-comment"># 4. dotnet build --no-restore -c Release</span>
-<span class="hl-comment"># 5. dotnet test (206 tests)</span>
-<span class="hl-comment">#    env: ConnectionStrings__DefaultConnection=Host=localhost;...</span>
-<span class="hl-comment">#         Jwt__Secret=ci-test-secret-...  (≥32 ký tự)</span>
-<span class="hl-comment">#         ASPNETCORE_ENVIRONMENT=Testing</span>
-<span class="hl-comment"># 6. Upload test-results artifact (.trx)</span></code></pre>
+        <div class="step">
+          <div class="step-num"><span>2</span></div>
+          <div class="step-body">
+            <div class="step-title">Restore → build → test</div>
+            <div class="code-block" style="margin-top:8px">
+              <div class="code-header"><span class="code-label">ci.yml — core steps</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+              <pre><code>dotnet restore Task-scheduler-system.sln
+dotnet build Task-scheduler-system.sln --no-restore -c Release
+dotnet test Task-scheduler-system.sln --no-build -c Release \
+  --logger "trx;LogFileName=results.xml" \
+  --results-directory ./TestResults</code></pre>
+            </div>
+            <div class="step-desc">Test env: <code>ConnectionStrings__DefaultConnection</code> → localhost Postgres, <code>Jwt__Secret</code> (long test key), <code>ASPNETCORE_ENVIRONMENT=Testing</code> ⇒ no auto-migration, no EF/Hangfire DI from <code>AddInfrastructure</code>, Swagger &amp; Hangfire dashboard off, <code>appsettings.Testing.json</code> supplies test JWT values.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num"><span>3</span></div>
+          <div class="step-body">
+            <div class="step-title">Upload results</div>
+            <div class="step-desc"><code>actions/upload-artifact@v4</code> → <code>test-results</code> (TRX files), <code>if: always()</code> so failures keep their report.</div>
+          </div>
+        </div>
       </div>
-
       <div class="two-col">
         <div class="info-card">
-          <h4>Tại sao cần PostgreSQL trong CI?</h4>
+          <h4>Why a real PostgreSQL in CI?</h4>
           <ul>
-            <li>Repository tests chạy trên SQLite in-memory (đủ cho unit test)</li>
-            <li>Api.Tests dùng <code>WebApplicationFactory</code> + SQLite — không cần Postgres</li>
-            <li>Nếu sau này có integration test thật với Postgres → sẵn sàng</li>
+            <li>Repo tests use SQLite/InMemory locally, but the Postgres service container makes the CI environment match production — dialect, timestamptz, EF Npgsql behavior</li>
+            <li>The <code>Testing</code> env skips <code>MigrateAsync</code>, so nothing is auto-created; a real DB is there if any test needs one</li>
           </ul>
         </div>
         <div class="info-card">
-          <h4>Tại sao cần <code>appsettings.Testing.json</code>?</h4>
+          <h4>Why <code>appsettings.Testing.json</code>?</h4>
           <ul>
-            <li><code>appsettings.json</code> để JWT Secret trống (security fix)</li>
-            <li><code>WebApplicationFactory</code> set env = <code>Testing</code></li>
-            <li>ASP.NET Core tự load <code>appsettings.Testing.json</code> → có JWT key cho test</li>
-            <li>File này chứa key giả, an toàn để commit</li>
+            <li><code>appsettings.json</code> intentionally keeps <strong>empty</strong> secrets (security fix — no committed credentials)</li>
+            <li><code>WebApplicationFactory</code> boots the app with env = <code>Testing</code> → ASP.NET Core auto-loads <code>appsettings.Testing.json</code> with a safe, committed test JWT key</li>
           </ul>
         </div>
       </div>
@@ -896,118 +963,133 @@ code {
     <!-- CD -->
     <section id="cd-workflow">
       <div class="section-header">
-        <span class="section-num">06</span>
-        <h3>CD Workflow — .github/workflows/cd.yml</h3>
+        <span class="section-num">09</span>
+        <h3>CD workflow &amp; deployment — .github/workflows/cd.yml</h3>
       </div>
       <div class="prose">
-        <p>Trigger: push vào <code>main</code>. Hai job: <strong>docker</strong> (build + push image) và <strong>deploy</strong> (SSH vào server).</p>
+        <p>Trigger: push to <code>main</code>. Two jobs: <strong>docker</strong> (build + push image) and <strong>deploy</strong> (tell Railway to redeploy).</p>
       </div>
-
       <div class="steps">
         <div class="step">
           <div class="step-num"><span>1</span></div>
           <div class="step-body">
-            <div class="step-title">Job <code>docker</code> — Build &amp; push image lên GHCR</div>
-            <div class="step-desc">Dùng <code>docker/build-push-action</code> build Dockerfile multi-stage, push lên <code>ghcr.io/huuquandev/task-scheduler-api</code> với 2 tag: <code>:latest</code> và <code>:&lt;commit-sha&gt;</code>. Dùng <code>GITHUB_TOKEN</code> tự động — không cần secret thủ công.</div>
+            <div class="step-title">Job <code>docker</code> — build &amp; push to GHCR</div>
+            <div class="step-desc"><code>docker/login-action@v3</code> authenticates to <code>ghcr.io</code> with the automatic <code>GITHUB_TOKEN</code> (permissions: <code>packages: write</code>). <code>docker/build-push-action@v5</code> builds the multi-stage <code>Dockerfile</code> and pushes two tags:</div>
+            <div class="code-block" style="margin-top:8px">
+              <div class="code-header"><span class="code-label">image tags</span></div>
+              <pre><code>ghcr.io/huuquandev/task-scheduler-api:latest
+ghcr.io/huuquandev/task-scheduler-api:&lt;commit-sha&gt;</code></pre>
+            </div>
+            <div class="step-desc">The <code>&lt;sha&gt;</code> tag keeps every release addressable — it is the rollback handle.</div>
           </div>
         </div>
         <div class="step">
           <div class="step-num"><span>2</span></div>
           <div class="step-body">
-            <div class="step-title">Job <code>deploy</code> — SSH vào server (optional)</div>
-            <div class="step-desc">Chỉ chạy sau khi job <code>docker</code> thành công. Check <code>DEPLOY_HOST</code> secret — nếu chưa cấu hình thì <strong>SKIP</strong> (không fail). Khi có host: SSH vào server, chạy <code>docker compose pull</code> → <code>docker compose up -d</code> → <code>docker image prune -f</code>.</div>
+            <div class="step-title">Job <code>deploy</code> — Railway redeploy (<code>needs: docker</code>)</div>
+            <div class="step-desc">Calls the Railway GraphQL API with the <code>RAILWAY_TOKEN</code> secret. Railway then pulls the fresh image for the connected service and redeploys it (migrations auto-run when the new container boots):</div>
+            <div class="code-block" style="margin-top:8px">
+              <div class="code-header"><span class="code-label">deploy step — curl to Railway GraphQL</span></div>
+              <pre><code>curl -s -X POST \
+  -H "Authorization: Bearer ${{ secrets.RAILWAY_TOKEN }}" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "mutation { serviceInstanceRedeploy(environmentId: "...", serviceId: "...") }"}' \
+  https://backboard.railway.app/graphql/v2</code></pre>
+            </div>
+            <div class="step-desc">The fixed <code>environmentId</code>/<code>serviceId</code> belong to this project's Railway environment and service. The only GitHub Actions secret required: <strong><code>RAILWAY_TOKEN</code></strong>.</div>
           </div>
         </div>
         <div class="step">
           <div class="step-num"><span>3</span></div>
           <div class="step-body">
-            <div class="step-title">Secrets cần thêm vào GitHub Actions</div>
-            <div class="step-desc">Vào <strong>GitHub repo → Settings → Secrets and variables → Actions</strong>, thêm: <code>DEPLOY_HOST</code>, <code>DEPLOY_USER</code>, <code>DEPLOY_SSH_KEY</code>, <code>DEPLOY_PATH</code>. Tuỳ chọn: <code>GHCR_TOKEN</code> + <code>DEPLOY_GHCR_USER</code> nếu repo private.</div>
+            <div class="step-title">What runs in the container</div>
+            <div class="step-desc"><strong>Multi-stage Dockerfile</strong>: <code>mcr.microsoft.com/dotnet/sdk:10.0</code> (csproj-only restore layer, then publish) → <code>mcr.microsoft.com/dotnet/aspnet:10.0</code> runtime, <code>ASPNETCORE_URLS=http://+:8080</code>, entrypoint <code>dotnet TaskScheduler.Api.dll</code>. <code>.dockerignore</code> excludes <code>bin/</code>, <code>obj/</code>, <code>.git/</code>, <code>Tests/</code>, <code>Docs/</code>, <code>.env*</code>.</div>
           </div>
         </div>
+      </div>
+      <div class="two-col">
+        <div class="info-card">
+          <h4>docker compose (self-host variant)</h4>
+          <ul>
+            <li><code>postgres</code>: postgres:18, db <code>task_scheduler</code>, password from <code>${DB_PASSWORD}</code>, named volume <code>postgres_data</code>, healthcheck</li>
+            <li><code>api</code>: image <code>ghcr.io/huuquandev/task-scheduler-api:latest</code> (local <code>build:</code> fallback), port 8080, <code>ASPNETCORE_ENVIRONMENT=Production</code>, secrets from <code>.env</code>, waits for postgres health</li>
+            <li><code>docker-compose.override.yml</code> (local only): switches env to <code>Development</code> → Swagger on</li>
+          </ul>
+        </div>
+        <div class="info-card">
+          <h4>Environments matrix</h4>
+          <ul>
+            <li><strong>Development</strong> — Swagger ✅, auto-migrate ✅, EF/Hangfire DI ✅</li>
+            <li><strong>Production</strong> — Swagger ❌, auto-migrate ✅, EF/Hangfire DI ✅</li>
+            <li><strong>Testing</strong> — Swagger ❌, Hangfire dashboard ❌, auto-migrate ❌, EF/Hangfire DI ❌ (tests wire their own)</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout info">
+        <span class="callout-icon">ℹ</span>
+        <div><strong>Operations quick reference:</strong> verify with <code>GET /health</code> · logs via <code>docker compose logs -f api</code> (Serilog) + <code>logs/log-YYYYMMDD.txt</code> · jobs via <code>/hangfire</code> (from the host loopback) · deploy by pushing to <code>main</code> (or <code>docker compose pull &amp;&amp; up -d</code> on a self-hosted box) · rollback = point the service at the previous <code>&lt;sha&gt;</code> tag · after a restart, recurring jobs resume automatically (Postgres job store); <code>Pending</code> tasks must be activated again only if their job was never registered.</div>
       </div>
     </section>
 
     <!-- LOCAL SETUP -->
     <section id="local-setup">
       <div class="section-header">
-        <span class="section-num">07</span>
-        <h3>Setup môi trường local</h3>
+        <span class="section-num">10</span>
+        <h3>Local setup</h3>
       </div>
-
       <div class="steps">
         <div class="step">
           <div class="step-num"><span>1</span></div>
           <div class="step-body">
-            <div class="step-title">Clone repo &amp; tạo file <code>.env</code></div>
-            <div class="step-desc">Copy <code>.env.example</code> thành <code>.env</code> rồi điền giá trị thật.</div>
+            <div class="step-title">Clone &amp; create <code>.env</code></div>
+            <div class="step-desc">Copy <code>.env.example</code> to <code>.env</code> and fill in real values (<code>DB_PASSWORD</code>, <code>JWT_SECRET</code> ≥ 32 chars, <code>SMTP_*</code>, <code>NOTIFICATIONS_ADMIN_EMAIL</code>). <code>.env</code> is gitignored.</div>
             <div class="code-block" style="margin-top:8px">
               <div class="code-header"><span class="code-label">PowerShell</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-              <pre><code>Copy-Item .env.example .env
-<span class="hl-comment"># Mở .env, điền DB_PASSWORD, JWT_SECRET, SMTP_*, NOTIFICATIONS_ADMIN_EMAIL</span></code></pre>
+              <pre><code>git clone https://github.com/huuquandev/Task-Scheduler-System.git
+cd Task-Scheduler-System
+Copy-Item .env.example .env</code></pre>
             </div>
           </div>
         </div>
         <div class="step">
           <div class="step-num"><span>2</span></div>
           <div class="step-body">
-            <div class="step-title">Tạo <code>appsettings.Development.json</code></div>
-            <div class="step-desc">File này gitignored, chứa secrets thật cho <code>dotnet run</code> local (không qua Docker).</div>
+            <div class="step-title">Start everything with Docker Compose (fastest)</div>
             <div class="code-block" style="margin-top:8px">
-              <div class="code-header"><span class="code-label">src/TaskScheduler.Api/appsettings.Development.json</span></div>
-              <pre><code>{
-  <span class="hl-key">"ConnectionStrings"</span>: {
-    <span class="hl-key">"DefaultConnection"</span>: <span class="hl-str">"Host=localhost;Port=5432;Database=task_scheduler;Username=postgres;Password=YOUR_PASSWORD"</span>
-  },
-  <span class="hl-key">"Jwt"</span>: { <span class="hl-key">"Secret"</span>: <span class="hl-str">"YOUR_SECRET_AT_LEAST_32_CHARS"</span>, <span class="hl-key">"ExpireHours"</span>: <span class="hl-num">72</span> },
-  <span class="hl-key">"Smtp"</span>: { <span class="hl-key">"Host"</span>: <span class="hl-str">"smtp.gmail.com"</span>, <span class="hl-key">"Port"</span>: <span class="hl-str">"587"</span>, <span class="hl-key">"User"</span>: <span class="hl-str">"ban@gmail.com"</span>, <span class="hl-key">"Password"</span>: <span class="hl-str">"app-password"</span> },
-  <span class="hl-key">"Notifications"</span>: { <span class="hl-key">"AdminEmail"</span>: <span class="hl-str">"admin@congty.com"</span> }
-}</code></pre>
+              <div class="code-header"><span class="code-label">PowerShell</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+              <pre><code>docker compose up -d --build
+docker compose logs -f api
+<span class="hl-comment"># Web UI:    http://localhost:8080</span>
+<span class="hl-comment"># Swagger:   http://localhost:8080/swagger  (override sets Development)</span>
+<span class="hl-comment"># Health:    http://localhost:8080/health</span>
+<span class="hl-comment"># Hangfire:  http://localhost:8080/hangfire (loopback only)</span></code></pre>
             </div>
           </div>
         </div>
         <div class="step">
           <div class="step-num"><span>3</span></div>
           <div class="step-body">
-            <div class="step-title">Khởi động bằng Docker Compose (cách nhanh nhất)</div>
+            <div class="step-title">Or: bare <code>dotnet run</code></div>
+            <div class="step-desc">Start only Postgres, then run the API. Create <code>src/TaskScheduler.Api/appsettings.Development.json</code> (gitignored) with your real connection string + JWT secret — the committed <code>appsettings.json</code> holds empty placeholders on purpose.</div>
             <div class="code-block" style="margin-top:8px">
               <div class="code-header"><span class="code-label">PowerShell</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-              <pre><code><span class="hl-comment"># Build image local + chạy postgres + api</span>
-docker compose up -d --build
-
-<span class="hl-comment"># Xem logs</span>
-docker compose logs -f api
-
-<span class="hl-comment"># API sẵn sàng tại http://localhost:8080</span>
-<span class="hl-comment"># Swagger: http://localhost:8080/swagger (env=Development)</span>
-<span class="hl-comment"># Health:  http://localhost:8080/health</span></code></pre>
+              <pre><code>docker compose up postgres -d
+dotnet run --project src/TaskScheduler.Api/TaskScheduler.Api.csproj
+<span class="hl-comment"># Swagger: https://localhost:7233/swagger</span>
+<span class="hl-comment"># EF migrations apply automatically at startup</span></code></pre>
             </div>
           </div>
         </div>
         <div class="step">
           <div class="step-num"><span>4</span></div>
           <div class="step-body">
-            <div class="step-title">Hoặc chạy thủ công (dotnet run)</div>
-            <div class="code-block" style="margin-top:8px">
-              <div class="code-header"><span class="code-label">PowerShell</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-              <pre><code><span class="hl-comment"># Chỉ khởi động PostgreSQL</span>
-docker compose up postgres -d
-
-<span class="hl-comment"># Chạy API (tự migrate DB khi startup)</span>
-dotnet run --project src/TaskScheduler.Api/TaskScheduler.Api.csproj
-
-<span class="hl-comment"># Swagger: https://localhost:5001/swagger</span></code></pre>
-            </div>
-          </div>
-        </div>
-        <div class="step">
-          <div class="step-num"><span>5</span></div>
-          <div class="step-body">
-            <div class="step-title">Chạy toàn bộ test suite</div>
+            <div class="step-title">Run the tests</div>
             <div class="code-block" style="margin-top:8px">
               <div class="code-header"><span class="code-label">PowerShell</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
               <pre><code>dotnet test Task-scheduler-system.sln
-<span class="hl-comment"># Expected: 206 passed, 0 failed</span></code></pre>
+<span class="hl-comment"># solution level runs Domain.Tests + Api.Tests (the two projects registered in the .sln)</span>
+dotnet test Tests/TaskScheduler.Application.Tests/TaskScheduler.Application.Tests.csproj
+dotnet test Tests/TaskScheduler.Infrastructure.Tests/TaskScheduler.Infrastructure.Tests.csproj</code></pre>
             </div>
           </div>
         </div>
@@ -1017,149 +1099,113 @@ dotnet run --project src/TaskScheduler.Api/TaskScheduler.Api.csproj
     <!-- TEST A TASK -->
     <section id="test-task">
       <div class="section-header">
-        <span class="section-num">08</span>
-        <h3>Test một Task theo đúng vòng đời</h3>
+        <span class="section-num">11</span>
+        <h3>Test a task through the full lifecycle</h3>
       </div>
       <div class="prose">
-        <p>Quy trình dưới đây test toàn bộ lifecycle của một task: tạo → activate → trigger thủ công → xem log → pause → resume. Dùng Swagger UI hoặc curl/Postman đều được.</p>
+        <p>Create → activate → trigger → read logs → pause → resume → failure/retry. Works with Swagger UI, Postman or curl. All endpoints need <code>Authorization: Bearer &lt;token&gt;</code>.</p>
       </div>
-
-      <div class="callout info">
-        <span class="callout-icon">ℹ</span>
-        <div><strong>Bước 0 — Lấy JWT token trước.</strong> Tất cả endpoint đều yêu cầu <code>[Authorize]</code>. Đăng ký tài khoản rồi login để lấy token, paste vào header <code>Authorization: Bearer &lt;token&gt;</code>.</div>
-      </div>
-
       <div class="steps">
         <div class="step">
           <div class="step-num"><span>0</span></div>
           <div class="step-body">
-            <div class="step-title">Đăng ký &amp; đăng nhập</div>
+            <div class="step-title">Register &amp; login → JWT</div>
             <div class="code-block" style="margin-top:8px">
-              <div class="code-header"><span class="code-label">POST /api/v1/auth/register</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-              <pre><code>{ <span class="hl-key">"email"</span>: <span class="hl-str">"dev@test.com"</span>, <span class="hl-key">"password"</span>: <span class="hl-str">"Test@1234"</span>, <span class="hl-key">"username"</span>: <span class="hl-str">"devuser"</span> }</code></pre>
-            </div>
-            <div class="code-block" style="margin-top:6px">
-              <div class="code-header"><span class="code-label">POST /api/v1/auth/login → lưu lại "token"</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-              <pre><code>{ <span class="hl-key">"email"</span>: <span class="hl-str">"dev@test.com"</span>, <span class="hl-key">"password"</span>: <span class="hl-str">"Test@1234"</span> }</code></pre>
+              <div class="code-header"><span class="code-label">POST /api/v1/auth/register → POST /api/v1/auth/login</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+              <pre><code>{ <span class="hl-key">"username"</span>: <span class="hl-str">"devuser"</span>, <span class="hl-key">"email"</span>: <span class="hl-str">"dev@test.com"</span>,
+  <span class="hl-key">"password"</span>: <span class="hl-str">"Test@1234"</span>, <span class="hl-key">"confirmPassword"</span>: <span class="hl-str">"Test@1234"</span> }
+
+{ <span class="hl-key">"username"</span>: <span class="hl-str">"devuser"</span>, <span class="hl-key">"password"</span>: <span class="hl-str">"Test@1234"</span> }
+<span class="hl-comment"># → keep "data".token</span></code></pre>
             </div>
           </div>
         </div>
-
         <div class="step">
           <div class="step-num"><span>1</span></div>
           <div class="step-body">
-            <div class="step-title">Tạo task — trạng thái: <span class="badge blue">Pending</span></div>
-            <div class="step-desc">Command đơn giản: <code>echo Hello Task</code>. Cron <code>* * * * *</code> = chạy mỗi phút.</div>
+            <div class="step-title">Create task — state: <span class="badge blue">Pending</span> (no Hangfire job yet)</div>
             <div class="code-block" style="margin-top:8px">
               <div class="code-header"><span class="code-label">POST /api/v1/tasks</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
               <pre><code>{
   <span class="hl-key">"name"</span>:           <span class="hl-str">"My First Task"</span>,
-  <span class="hl-key">"description"</span>:    <span class="hl-str">"Test vòng đời task"</span>,
+  <span class="hl-key">"description"</span>:    <span class="hl-str">"lifecycle test"</span>,
   <span class="hl-key">"cronExpression"</span>: <span class="hl-str">"* * * * *"</span>,
   <span class="hl-key">"command"</span>:        <span class="hl-str">"echo Hello Task"</span>,
   <span class="hl-key">"maxRetries"</span>:     <span class="hl-num">2</span>
 }
-<span class="hl-comment">// Response: { "data": "&lt;task-guid&gt;" } → lưu lại ID này</span></code></pre>
+<span class="hl-comment"># → data = task GUID — keep it</span></code></pre>
             </div>
           </div>
         </div>
-
         <div class="step">
           <div class="step-num"><span>2</span></div>
           <div class="step-body">
-            <div class="step-title">Kích hoạt task — trạng thái: <span class="badge green">Active</span></div>
-            <div class="step-desc">Task Pending không chạy. Phải activate trước để Hangfire đăng ký RecurringJob.</div>
+            <div class="step-title">Activate — state: <span class="badge green">Active</span></div>
+            <div class="step-desc">A <code>Pending</code> task never runs. Activating registers the recurring job (visible in <code>/hangfire</code> with id = task GUID).</div>
             <div class="code-block" style="margin-top:8px">
-              <div class="code-header"><span class="code-label">POST /api/v1/tasks/{id}/activate</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-              <pre><code><span class="hl-comment"># Không cần body. Response: { "data": true }</span>
-<span class="hl-comment"># Hangfire dashboard: thấy RecurringJob với ID = task-guid</span></code></pre>
+              <div class="code-header"><span class="code-label">POST /api/v1/tasks/{id}/activate</span></div>
+              <pre><code><span class="hl-comment"># no body → { "code": 0, "message": "Task has activated successfully" }</span></code></pre>
             </div>
           </div>
         </div>
-
         <div class="step">
           <div class="step-num"><span>3</span></div>
           <div class="step-body">
-            <div class="step-title">Trigger thủ công — trạng thái: <span class="badge blue">Running</span> → <span class="badge green">Active</span></div>
-            <div class="step-desc">Không cần đợi đến phút tiếp theo. Trigger enqueue job ngay vào Hangfire.</div>
+            <div class="step-title">Trigger manually — <span class="badge blue">Running</span> → back to <span class="badge green">Active</span></div>
+            <div class="step-desc">Enqueues a one-off background job (rate limit 10/min). Watch it in <code>/hangfire</code> → Background: Queued → Processing → Succeeded.</div>
             <div class="code-block" style="margin-top:8px">
-              <div class="code-header"><span class="code-label">POST /api/v1/tasks/{id}/trigger</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-              <pre><code><span class="hl-comment"># Rate limited: tối đa X lần/phút (RateLimitExtensions)</span>
-<span class="hl-comment"># Response: { "data": true }</span>
-<span class="hl-comment"># Xem Hangfire dashboard: /hangfire → Jobs → Enqueued</span></code></pre>
+              <div class="code-header"><span class="code-label">POST /api/v1/tasks/{id}/trigger</span></div>
+              <pre><code><span class="hl-comment"># → { "code": 0, "message": "Task triggered successfully." }</span></code></pre>
             </div>
           </div>
         </div>
-
         <div class="step">
           <div class="step-num"><span>4</span></div>
           <div class="step-body">
-            <div class="step-title">Xem kết quả thực thi</div>
+            <div class="step-title">Read the execution log</div>
             <div class="code-block" style="margin-top:8px">
-              <div class="code-header"><span class="code-label">GET /api/v1/execution-logs/{taskId}</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-              <pre><code><span class="hl-comment"># Response: danh sách log, mỗi log có:</span>
-<span class="hl-comment">#   status: Success / Failed</span>
-<span class="hl-comment">#   durationMs: thời gian chạy</span>
-<span class="hl-comment">#   exitCode: 0 (success) hoặc khác</span>
-<span class="hl-comment">#   errorMessage: lý do nếu fail</span></code></pre>
+              <div class="code-header"><span class="code-label">GET /api/v1/tasks/{id}/logs · GET /api/v1/tasks/{id}/log/{logId}</span></div>
+              <pre><code><span class="hl-comment"># list:  [{ id, startedAt, finishedAt, status: "Success", errorMessage: null }]</span>
+<span class="hl-comment"># detail: + taskName, durationMs  (exitCode stored on the row)</span></code></pre>
             </div>
           </div>
         </div>
-
         <div class="step">
           <div class="step-num"><span>5</span></div>
           <div class="step-body">
-            <div class="step-title">Pause task — trạng thái: <span class="badge amber">Paused</span></div>
-            <div class="step-desc">Chỉ pause được khi đang Active. Hangfire RecurringJob bị remove.</div>
+            <div class="step-title">Pause / resume — <span class="badge amber">Paused</span> → <span class="badge green">Active</span></div>
+            <div class="step-desc">Pause is only allowed from <code>Active</code> and removes the recurring job; resume re-registers it.</div>
             <div class="code-block" style="margin-top:8px">
-              <div class="code-header"><span class="code-label">POST /api/v1/tasks/{id}/pause</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-              <pre><code><span class="hl-comment"># Response: { "data": true }</span></code></pre>
+              <div class="code-header"><span class="code-label">POST /api/v1/tasks/{id}/pause · /resume</span></div>
+              <pre><code><span class="hl-comment"># pause  → "Task Paused successfully"</span>
+<span class="hl-comment"># resume → "Task has resumed successfully"</span></code></pre>
             </div>
           </div>
         </div>
-
         <div class="step">
           <div class="step-num"><span>6</span></div>
           <div class="step-body">
-            <div class="step-title">Resume task — trạng thái: <span class="badge green">Active</span></div>
+            <div class="step-title">Failure &amp; retry scenario</div>
+            <div class="step-desc">Create a task whose command fails (e.g. <code>"exit 1"</code>, <code>maxRetries: 1</code>), activate + trigger it:</div>
             <div class="code-block" style="margin-top:8px">
-              <div class="code-header"><span class="code-label">POST /api/v1/tasks/{id}/resume</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-              <pre><code><span class="hl-comment"># Hangfire RecurringJob được đăng ký lại</span></code></pre>
+              <div class="code-header"><span class="code-label">expected sequence</span></div>
+              <pre><code>run #1 fails → RetryCount = 1 ≤ 1 → stays Active, delayed retry in 60 s
+run #2 fails → RetryCount = 2 &gt; 1 → status Failed
+TaskFailedEvent → error log + email to Notifications:AdminEmail (if set)
+<span class="hl-comment"># both runs visible in GET /tasks/{id}/logs with status "Failed"</span></code></pre>
             </div>
           </div>
         </div>
-
         <div class="step">
           <div class="step-num"><span>7</span></div>
           <div class="step-body">
-            <div class="step-title">Test kịch bản lỗi &amp; retry</div>
-            <div class="step-desc">Tạo task với command lỗi để xem retry logic và email notification.</div>
+            <div class="step-title">Monitor &amp; clean up</div>
             <div class="code-block" style="margin-top:8px">
-              <div class="code-header"><span class="code-label">Tạo task lỗi</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-              <pre><code>{
-  <span class="hl-key">"name"</span>:           <span class="hl-str">"Failing Task"</span>,
-  <span class="hl-key">"cronExpression"</span>: <span class="hl-str">"* * * * *"</span>,
-  <span class="hl-key">"command"</span>:        <span class="hl-str">"exit 1"</span>,
-  <span class="hl-key">"maxRetries"</span>:     <span class="hl-num">1</span>
-}
-<span class="hl-comment"># → activate → trigger</span>
-<span class="hl-comment"># Lần 1: fail → RetryCount=1, schedule retry sau 30s</span>
-<span class="hl-comment"># Lần 2: fail → RetryCount=2 > MaxRetries=1 → Status=Failed</span>
-<span class="hl-comment"># Email gửi tới Notifications:AdminEmail (nếu đã cấu hình)</span></code></pre>
-            </div>
-          </div>
-        </div>
-        <div class="step">
-          <div class="step-num"><span>8</span></div>
-          <div class="step-body">
-            <div class="step-title">Xem dashboard &amp; health</div>
-            <div class="step-desc">Các endpoint hữu ích để monitor hệ thống.</div>
-            <div class="code-block" style="margin-top:8px">
-              <div class="code-header"><span class="code-label">Endpoints monitor</span></div>
-              <pre><code>GET /health              <span class="hl-comment"># {"status":"Healthy","results":{"npgsql":{...}}}</span>
-GET /hangfire            <span class="hl-comment"># Dashboard Hangfire — xem jobs, retries, history</span>
-GET /api/v1/dashboard    <span class="hl-comment"># Thống kê tổng: total, active, failed, completed</span>
-GET /api/v1/tasks/paged  <span class="hl-comment"># ?page=1&pageSize=10&status=Active</span></code></pre>
+              <div class="code-header"><span class="code-label">monitoring endpoints</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+              <pre><code>GET /health              <span class="hl-comment"># {"status":"Healthy", ...npgsql...}</span>
+GET /api/v1/dashboard    <span class="hl-comment"># totals, active, running, success/failure</span>
+GET /api/v1/tasks/paged  <span class="hl-comment"># ?page=1&amp;pageSize=10&amp;status=Active</span>
+DELETE /api/v1/tasks/{id}<span class="hl-comment"># soft delete + unschedule</span></code></pre>
             </div>
           </div>
         </div>
@@ -1169,30 +1215,98 @@ GET /api/v1/tasks/paged  <span class="hl-comment"># ?page=1&pageSize=10&status=A
     <!-- SECRETS -->
     <section id="secrets">
       <div class="section-header">
-        <span class="section-num">09</span>
-        <h3>Secrets &amp; Configuration</h3>
+        <span class="section-num">12</span>
+        <h3>Secrets &amp; configuration</h3>
       </div>
       <div class="callout warn">
         <span class="callout-icon">⚠</span>
-        <div><strong>JWT Secret &amp; DB Password đã bị lộ trong git history.</strong> Sau khi setup, hãy rotate: tạo JWT secret mới (<code>openssl rand -base64 48</code>) và đổi mật khẩu PostgreSQL. Cập nhật lại GitHub Actions secrets và file <code>.env</code> local.</div>
+        <div><strong>Rotate anything that was ever committed.</strong> A JWT secret and a DB password lived in git history early on — treat both as compromised: generate a new JWT secret (<code>openssl rand -base64 48</code>), change the PostgreSQL password, and update <code>.env</code> / GitHub Actions secrets.</div>
       </div>
       <div class="two-col" style="margin-top:4px">
         <div class="info-card">
           <h4>Config flow: local dev</h4>
           <ul>
-            <li><code>appsettings.json</code> — cấu trúc, giá trị trống</li>
-            <li><code>appsettings.Development.json</code> — override với secrets thật (gitignored)</li>
-            <li>ASP.NET Core merge tự động theo priority</li>
+            <li><code>appsettings.json</code> — structure + empty secret placeholders (committed)</li>
+            <li><code>appsettings.Development.json</code> — real local values (gitignored)</li>
+            <li>ASP.NET Core merges by environment priority; <code>dotnet run</code> loads Development automatically</li>
           </ul>
         </div>
         <div class="info-card">
           <h4>Config flow: production / Docker</h4>
           <ul>
-            <li>Secrets inject qua environment variables</li>
-            <li><code>ConnectionStrings__DefaultConnection</code> → <code>ConnectionStrings:DefaultConnection</code></li>
-            <li>Lấy giá trị từ file <code>.env</code> (docker compose) hoặc GitHub Actions secrets</li>
+            <li>Secrets injected as <strong>environment variables</strong> (compose <code>.env</code> → container env)</li>
+            <li><code>ConnectionStrings__DefaultConnection</code> → <code>ConnectionStrings:DefaultConnection</code>; same for <code>Jwt__Secret</code>, <code>Smtp__Host</code>, <code>Notifications__AdminEmail</code>, …</li>
+            <li>CI supplies its own test values (connection to the Postgres service container + test JWT key)</li>
           </ul>
         </div>
+      </div>
+      <div style="overflow-x:auto; border: 1px solid var(--border); border-radius: 6px;">
+        <table class="change-table">
+          <thead><tr><th>App config key</th><th>Compose / env var</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td>ConnectionStrings:DefaultConnection</td><td>DB_PASSWORD</td><td>PostgreSQL — EF Core <em>and</em> Hangfire share it</td></tr>
+            <tr><td>Jwt:Secret</td><td>JWT_SECRET</td><td>HMAC-SHA256 key, ≥ 32 chars</td></tr>
+            <tr><td>Jwt:Issuer / Audience / ExpireHours</td><td>— / 72 h</td><td><code>TaskSchedulerAPI</code> / <code>TaskSchedulerClient</code></td></tr>
+            <tr><td>TaskExecution:TimeoutSeconds</td><td>— / 300</td><td>Per-run command timeout</td></tr>
+            <tr><td>Smtp:Host / Port / User / Password</td><td>SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASSWORD</td><td>Failure-alert mail (STARTTLS)</td></tr>
+            <tr><td>Notifications:AdminEmail</td><td>NOTIFICATIONS_ADMIN_EMAIL</td><td>Alert recipient; empty ⇒ no email</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- AUTOMATED TESTING -->
+    <section id="testing">
+      <div class="section-header">
+        <span class="section-num">13</span>
+        <h3>Automated testing</h3>
+      </div>
+      <div class="prose">
+        <p>Stack: xUnit 2.9 · FluentAssertions · Moq · coverlet · EF Core InMemory/SQLite · Hangfire.InMemory · <code>WebApplicationFactory</code>. No Testcontainers — infrastructure tests run on in-memory/SQLite databases.</p>
+      </div>
+      <div style="overflow-x:auto; border: 1px solid var(--border); border-radius: 6px;">
+        <table class="change-table">
+          <thead><tr><th>Project</th><th>In .sln</th><th>Covers</th></tr></thead>
+          <tbody>
+            <tr><td>TaskScheduler.Domain.Tests</td><td><span class="badge green">yes</span></td><td class="reason">Entity transitions &amp; guards, CronExpression VO, domain events (builders per entity)</td></tr>
+            <tr><td>TaskScheduler.Application.Tests</td><td><span class="badge amber">no</span></td><td class="reason">All CQRS handlers (happy + guard paths), validators, Logging/Validation behaviors, mappers</td></tr>
+            <tr><td>TaskScheduler.Infrastructure.Tests</td><td><span class="badge amber">no</span></td><td class="reason">Repositories, HangfireSchedulerService, TaskJob, TokenService, event dispatch</td></tr>
+            <tr><td>TaskScheduler.Api.Tests</td><td><span class="badge green">yes</span></td><td class="reason">Auth &amp; Tasks controllers end-to-end over WebApplicationFactory (SQLite)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout warn">
+        <span class="callout-icon">⚠</span>
+        <div><strong>CI only runs the two solution-registered suites</strong> (Domain.Tests + Api.Tests). Adding the other two projects to the <code>.sln</code> extends CI coverage with a one-line change each.</div>
+      </div>
+    </section>
+
+    <!-- KNOWN ISSUES -->
+    <section id="issues">
+      <div class="section-header">
+        <span class="section-num">14</span>
+        <h3>Known issues &amp; design notes</h3>
+      </div>
+      <div class="prose">
+        <p>Documented so the next developer knows what is deliberate and what is a gap. Full list with fix ideas: <a href="ARCHITECTURE.md#14-known-issues--design-notes">ARCHITECTURE.md §14</a>.</p>
+      </div>
+      <div style="overflow-x:auto; border: 1px solid var(--border); border-radius: 6px;">
+        <table class="change-table">
+          <thead><tr><th>#</th><th>Issue</th><th>Impact</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td><code>Failed</code> tasks keep their recurring job; <code>ExecuteTask</code> has no status guard</td><td class="reason">A failed task re-runs on every cron tick and re-sends the failure email. Fix: unschedule on exhaustion, or guard at the top of <code>ExecuteTask</code>.</td></tr>
+            <tr><td>2</td><td><code>PUT /tasks/{id}</code> always calls <code>RescheduleTaskAsync</code></td><td class="reason">Updating a <code>Pending</code> task registers a recurring job → it starts running on cron without activation.</td></tr>
+            <tr><td>3</td><td><code>Completed</code> state unreachable on the execution path</td><td class="reason">Successful runs set the task back to <code>Active</code>; <code>MarkAsCompleted</code>/<code>TaskCompletedEvent</code> exist but are unused by the engine.</td></tr>
+            <tr><td>4</td><td>UI “Re-activate” button for <code>Failed</code> tasks</td><td class="reason">Calls <code>POST /{id}/activate</code> which only accepts <code>Pending</code> → returns 400. Align handler or remove the button.</td></tr>
+            <tr><td>5</td><td><code>TaskPausedEvent</code> has no handler; delayed retries ignore pause</td><td class="reason">A retry scheduled before a pause still fires and runs the paused task (same root cause as #1).</td></tr>
+            <tr><td>6</td><td>Metrics &amp; SMS are no-ops; CORS is <code>AllowAll</code></td><td class="reason">Seams exist (event → handler → service) but no exporter/provider is wired; tighten CORS if the UI moves off-origin.</td></tr>
+            <tr><td>7</td><td>Dashboard <code>deletedTasks</code> is always 0; log DTO <code>finishedAt</code> non-nullable; <code>VerifyPassword</code> not constant-time</td><td class="reason">Minor: repo filters soft-deleted rows; AutoMapper defaults for in-flight runs; use <code>FixedTimeEquals</code> for hardening.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout ok">
+        <span class="callout-icon">✓</span>
+        <div><strong>Design decisions that are intentional:</strong> cron-only scheduling (no interval/one-off), single in-process Hangfire server on the default queue, one PostgreSQL database for app data + job store, loopback-only Hangfire dashboard, auto-migrations at startup, envelope-wrapped responses with app-level <code>code</code>.</div>
       </div>
     </section>
 
