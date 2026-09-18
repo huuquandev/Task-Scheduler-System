@@ -208,10 +208,10 @@ dotnet run --project src/TaskScheduler.Api/TaskScheduler.Api.csproj
 ```bash
 dotnet restore
 dotnet build -c Release
-dotnet test                      # runs the test projects registered in the solution
+dotnet test                      # runs all four test projects (all registered in the .sln)
 ```
 
-> **Note:** `TaskScheduler.Application.Tests` and `TaskScheduler.Infrastructure.Tests` are **not registered in the `.sln`** (only `Domain.Tests` and `Api.Tests` are), so `dotnet test` at solution level runs those two. To run a specific project explicitly:
+> All four test projects (`Domain.Tests`, `Application.Tests`, `Infrastructure.Tests`, `Api.Tests`) are registered in the `.sln`. To run a specific project explicitly:
 > `dotnet test Tests/TaskScheduler.Application.Tests/TaskScheduler.Application.Tests.csproj`
 
 ### First steps with the API
@@ -260,7 +260,7 @@ All responses use a common envelope: `{ "code": int, "message": string, "data": 
 | GET | `/api/v1/tasks/{id}` | Task details |
 | PUT | `/api/v1/tasks/{id}` | Partial update (name, description, cron, command, maxRetries) |
 | DELETE | `/api/v1/tasks/{id}` | Soft delete + unschedule |
-| POST | `/api/v1/tasks/{id}/activate` | `Pending` → `Active`, registers the recurring job |
+| POST | `/api/v1/tasks/{id}/activate` | `Pending`/`Failed` → `Active`, registers the recurring job (Failed: resets retry count) |
 | POST | `/api/v1/tasks/{id}/pause` | `Active` → `Paused`, removes the recurring job |
 | POST | `/api/v1/tasks/{id}/resume` | `Paused` → `Active`, re-registers the recurring job |
 | POST | `/api/v1/tasks/{id}/trigger` | Run immediately (rate-limited: 10/min) |
@@ -294,7 +294,7 @@ All responses use a common envelope: `{ "code": int, "message": string, "data": 
         │                   ▼
         │               ┌────────┐
         └────────────────│ Failed│  → TaskFailedEvent → error log + admin email
-                          └────────┘
+                          └────────┘    recurring job removed (re-activate to restart)
 ```
 
 | State | Meaning |
@@ -303,7 +303,7 @@ All responses use a common envelope: `{ "code": int, "message": string, "data": 
 | `Active` | Recurring job registered; waiting for its cron slot |
 | `Running` | An execution is in progress |
 | `Paused` | Recurring job removed; task kept, not scheduled |
-| `Failed` | Retries exhausted after a failed run |
+| `Failed` | Retries exhausted after a failed run; recurring job removed until re-activated |
 | `Completed` | Execution finished successfully (see [design notes](Docs/ARCHITECTURE.md#14-known-issues--design-notes)) |
 
 Full transition rules, guards and edge cases: [Docs/ARCHITECTURE.md → Task lifecycle](Docs/ARCHITECTURE.md#4-task-lifecycle).
@@ -320,7 +320,7 @@ Full transition rules, guards and edge cases: [Docs/ARCHITECTURE.md → Task lif
 | `TaskScheduler.Api.Tests` | Controllers & API endpoints via `WebApplicationFactory` | xUnit, Moq, Mvc.Testing, SQLite |
 
 ```bash
-dotnet test                                   # solution-registered test projects
+dotnet test                                   # all four test projects
 dotnet test Tests/<Project>/<Project>.csproj  # any specific test project
 ```
 

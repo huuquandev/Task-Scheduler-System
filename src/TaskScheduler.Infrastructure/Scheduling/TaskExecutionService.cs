@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Hangfire;
 using TaskScheduler.Application.Interfaces;
 using TaskScheduler.Domain.Entities;
+using TaskScheduler.Domain.Enums;
 using TaskScheduler.Application.Common.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -19,8 +20,9 @@ namespace TaskScheduler.Infrastructure.Scheduling
         private readonly ILogger<TaskExecutionService> _logger;
         private readonly IConfiguration _configuration;
         private readonly IBackgroundJobClient _backgroundJobClient;
+        private readonly ISchedulerService _scheduler;
 
-        public TaskExecutionService(ITaskRepository repo, ITaskExecutionLogRepository logrepo, IUnitOfWork unitOfWork, ILogger<TaskExecutionService> logger, IConfiguration configuration, IBackgroundJobClient backgroundJobClient)
+        public TaskExecutionService(ITaskRepository repo, ITaskExecutionLogRepository logrepo, IUnitOfWork unitOfWork, ILogger<TaskExecutionService> logger, IConfiguration configuration, IBackgroundJobClient backgroundJobClient, ISchedulerService scheduler)
         {
             _repo = repo;
             _logrepo = logrepo;
@@ -28,6 +30,7 @@ namespace TaskScheduler.Infrastructure.Scheduling
             _logger = logger;
             _configuration = configuration;
             _backgroundJobClient = backgroundJobClient;
+            _scheduler = scheduler;
         }
 
         // Execute the task by its ID, handling the execution flow, logging, and retry logic.
@@ -38,6 +41,14 @@ namespace TaskScheduler.Infrastructure.Scheduling
             if (task == null)
             {
                 _logger.LogWarning("Task {TaskId} not found", taskId);
+                return;
+            }
+
+            // Only scheduled (Active) tasks and manually re-run failed (Failed) tasks may execute.
+            // Blocks stray cron ticks / delayed retries for pending, paused and completed tasks.
+            if (task.Status != ScheduledTaskStatus.Active && task.Status != ScheduledTaskStatus.Failed)
+            {
+                _logger.LogWarning("Skipping execution of task {TaskId}: status {Status} does not allow execution", task.Id, task.Status);
                 return;
             }
 
@@ -99,6 +110,10 @@ namespace TaskScheduler.Infrastructure.Scheduling
                 {
                     _logger.LogError("Task {TaskId} exhausted all retries", task.Id);
                     task.MarkAsFailed(ex.Message);
+
+                    // Remove the recurring job so it stops firing on every cron tick
+                    // (and stops triggering repeated failure emails).
+                    await _scheduler.UnscheduleTaskAsync(task.Id);
                 }
             }
             finally

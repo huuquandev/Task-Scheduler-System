@@ -673,7 +673,7 @@ code {
         <h3>Task lifecycle</h3>
       </div>
       <div class="prose">
-        <p>Transitions are enforced by guards — in the entity (<code>Pause</code>: only from <code>Active</code>) or in the handler (activate: only from <code>Pending</code>; resume: only from <code>Paused</code>; trigger: only from <code>Active</code>/<code>Failed</code>). A created task is <strong>Pending and will not run</strong> until activated.</p>
+        <p>Transitions are enforced by guards — in the entity (<code>Pause</code>: only from <code>Active</code>) or in the handler (activate: only from <code>Pending</code> or <code>Failed</code> — re-activating a <code>Failed</code> task resets its retry count; resume: only from <code>Paused</code>; trigger: only from <code>Active</code>/<code>Failed</code>). A created task is <strong>Pending and will not run</strong> until activated.</p>
       </div>
       <div style="overflow-x:auto; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 24px 28px;">
         <div class="lifecycle">
@@ -722,19 +722,19 @@ code {
           <thead><tr><th>Transition</th><th>Endpoint</th><th>Guard</th><th>Hangfire effect</th></tr></thead>
           <tbody>
             <tr><td>— → Pending</td><td>POST /tasks</td><td>cron must parse (Cronos)</td><td>none (job not registered)</td></tr>
-            <tr><td>Pending → Active</td><td>POST /tasks/{id}/activate</td><td>“Only pending tasks can be activated.”</td><td>recurring job added (id = task GUID)</td></tr>
+            <tr><td>Pending/Failed → Active</td><td>POST /tasks/{id}/activate</td><td>“Only pending or failed tasks can be activated.” (Failed: retry count reset)</td><td>recurring job added (id = task GUID)</td></tr>
             <tr><td>Active → Paused</td><td>POST /tasks/{id}/pause</td><td>“Only active task can be paused.” (entity)</td><td>recurring job removed</td></tr>
             <tr><td>Paused → Active</td><td>POST /tasks/{id}/resume</td><td>“Only paused tasks can be resumed.”</td><td>recurring job re-added</td></tr>
             <tr><td>Active/Failed → run</td><td>POST /tasks/{id}/trigger</td><td>“Only Active or Failed tasks can be triggered manually.”</td><td>one background job (rate-limited 10/min)</td></tr>
             <tr><td>Running → Active</td><td>run succeeded</td><td>—</td><td>NextRunAt recomputed, RetryCount reset</td></tr>
             <tr><td>Running → Active + retry</td><td>run failed, retries left</td><td><code>RetryCount ≤ MaxRetries</code> (after ++)</td><td>one delayed job (60/120/240/300 s)</td></tr>
-            <tr><td>Running → Failed</td><td>run failed, retries exhausted</td><td><code>RetryCount &gt; MaxRetries</code></td><td>recurring job <strong>not</strong> removed (known issue)</td></tr>
+            <tr><td>Running → Failed</td><td>run failed, retries exhausted</td><td><code>RetryCount &gt; MaxRetries</code></td><td>recurring job <strong>removed</strong> (no more cron ticks / emails)</td></tr>
           </tbody>
         </table>
       </div>
       <div class="callout info">
         <span class="callout-icon">ℹ</span>
-        <div><strong>Retry logic:</strong> every failure does <code>RetryCount++</code>. While <code>RetryCount ≤ MaxRetries</code> the task stays <code>Active</code> and a delayed Hangfire job re-runs it after <code>min(300, 2^RetryCount × 30)</code> seconds → 60 s, 120 s, 240 s, then 300 s. Once the budget is exceeded: task → <strong>Failed</strong>, <code>TaskFailedEvent</code> fires → error log + admin email. A success resets <code>RetryCount</code> to 0.</div>
+        <div><strong>Retry logic:</strong> every failure does <code>RetryCount++</code>. While <code>RetryCount ≤ MaxRetries</code> the task stays <code>Active</code> and a delayed Hangfire job re-runs it after <code>min(300, 2^RetryCount × 30)</code> seconds → 60 s, 120 s, 240 s, then 300 s. Once the budget is exceeded: task → <strong>Failed</strong>, the recurring job is <strong>removed</strong> (it stays dormant until re-activated, which resets the retry budget), <code>TaskFailedEvent</code> fires → error log + admin email. A success resets <code>RetryCount</code> to 0. A status guard at the top of <code>ExecuteTask</code> skips any run for tasks that are not <code>Active</code>/<code>Failed</code>.</div>
       </div>
     </section>
 
@@ -757,9 +757,9 @@ code {
             <tr><td>GET /tasks</td><td><span class="badge green">JWT</span></td><td class="reason">All non-deleted tasks <code>[{id, name, status}]</code></td></tr>
             <tr><td>GET /tasks/paged</td><td><span class="badge green">JWT</span></td><td class="reason"><code>?page=&amp;pageSize=&amp;status=</code> → <code>PagedResult&lt;TaskDto&gt;</code>, ordered by CreatedAt desc</td></tr>
             <tr><td>GET /tasks/{id}</td><td><span class="badge green">JWT</span></td><td class="reason">Task details <code>{id, name, description, status, cronExpression}</code></td></tr>
-            <tr><td>PUT /tasks/{id}</td><td><span class="badge green">JWT</span></td><td class="reason">Partial update (null = keep). Always calls <code>RescheduleTaskAsync</code></td></tr>
+            <tr><td>PUT /tasks/{id}</td><td><span class="badge green">JWT</span></td><td class="reason">Partial update (null = keep). Calls <code>RescheduleTaskAsync</code> only for <code>Active</code>/<code>Running</code> tasks</td></tr>
             <tr><td>DELETE /tasks/{id}</td><td><span class="badge green">JWT</span></td><td class="reason">Soft delete + unschedule</td></tr>
-            <tr><td>POST /tasks/{id}/activate</td><td><span class="badge green">JWT</span></td><td class="reason"><code>Pending → Active</code>, registers recurring job</td></tr>
+            <tr><td>POST /tasks/{id}/activate</td><td><span class="badge green">JWT</span></td><td class="reason"><code>Pending</code>/<code>Failed</code> → <code>Active</code>, registers recurring job (Failed: resets retry count)</td></tr>
             <tr><td>POST /tasks/{id}/pause</td><td><span class="badge green">JWT</span></td><td class="reason"><code>Active → Paused</code>, removes recurring job</td></tr>
             <tr><td>POST /tasks/{id}/resume</td><td><span class="badge green">JWT</span></td><td class="reason"><code>Paused → Active</code>, re-registers recurring job</td></tr>
             <tr><td>POST /tasks/{id}/trigger</td><td><span class="badge green">JWT</span></td><td class="reason">Immediate background run. Rate-limited: 10/min → 429</td></tr>
@@ -806,7 +806,7 @@ code {
         <ul>
           <li><strong>Storage</strong> = PostgreSQL (same DB as app data) → recurring schedules survive an app restart; only EF migrations run at boot</li>
           <li><strong>Server</strong> = in-process (<code>AddHangfireServer</code>), single default queue</li>
-          <li><strong>Recurring jobs</strong>: id = task GUID, cron = task's cron string — <code>AddOrUpdate</code> on activate/resume/update, removed on pause/delete</li>
+          <li><strong>Recurring jobs</strong>: id = task GUID, cron = task's cron string — <code>AddOrUpdate</code> on activate/resume/update (Active/Running only), removed on pause/delete and on retry exhaustion</li>
           <li><strong>Background jobs</strong>: manual trigger (<code>Enqueue</code>) and delayed retries (<code>Schedule</code>)</li>
           <li><strong>Dashboard</strong>: <code>/hangfire</code>, loopback-IP-only filter (no credentials)</li>
         </ul>
@@ -1269,15 +1269,15 @@ DELETE /api/v1/tasks/{id}<span class="hl-comment"># soft delete + unschedule</sp
           <thead><tr><th>Project</th><th>In .sln</th><th>Covers</th></tr></thead>
           <tbody>
             <tr><td>TaskScheduler.Domain.Tests</td><td><span class="badge green">yes</span></td><td class="reason">Entity transitions &amp; guards, CronExpression VO, domain events (builders per entity)</td></tr>
-            <tr><td>TaskScheduler.Application.Tests</td><td><span class="badge amber">no</span></td><td class="reason">All CQRS handlers (happy + guard paths), validators, Logging/Validation behaviors, mappers</td></tr>
-            <tr><td>TaskScheduler.Infrastructure.Tests</td><td><span class="badge amber">no</span></td><td class="reason">Repositories, HangfireSchedulerService, TaskJob, TokenService, event dispatch</td></tr>
+            <tr><td>TaskScheduler.Application.Tests</td><td><span class="badge green">yes</span></td><td class="reason">All CQRS handlers (happy + guard paths), validators, Logging/Validation behaviors, mappers</td></tr>
+            <tr><td>TaskScheduler.Infrastructure.Tests</td><td><span class="badge green">yes</span></td><td class="reason">Repositories, HangfireSchedulerService, TaskJob, TokenService, event dispatch, TaskExecutionService (status guard, retry &amp; unschedule)</td></tr>
             <tr><td>TaskScheduler.Api.Tests</td><td><span class="badge green">yes</span></td><td class="reason">Auth &amp; Tasks controllers end-to-end over WebApplicationFactory (SQLite)</td></tr>
           </tbody>
         </table>
       </div>
-      <div class="callout warn">
-        <span class="callout-icon">⚠</span>
-        <div><strong>CI only runs the two solution-registered suites</strong> (Domain.Tests + Api.Tests). Adding the other two projects to the <code>.sln</code> extends CI coverage with a one-line change each.</div>
+      <div class="callout ok">
+        <span class="callout-icon">✓</span>
+        <div><strong>All four test projects are registered in the <code>.sln</code></strong> — CI runs the full suite against the PostgreSQL service container.</div>
       </div>
     </section>
 
@@ -1288,19 +1288,17 @@ DELETE /api/v1/tasks/{id}<span class="hl-comment"># soft delete + unschedule</sp
         <h3>Known issues &amp; design notes</h3>
       </div>
       <div class="prose">
-        <p>Documented so the next developer knows what is deliberate and what is a gap. Full list with fix ideas: <a href="ARCHITECTURE.md#14-known-issues--design-notes">ARCHITECTURE.md §14</a>.</p>
+        <p>Documented so the next developer knows what is deliberate and what is a gap. Full list: <a href="ARCHITECTURE.md#14-known-issues--design-notes">ARCHITECTURE.md §14</a>.</p>
+        <p><strong>Recently fixed</strong> (now covered by unit tests): failed tasks no longer keep their recurring job (removed on retry exhaustion + status guard in <code>ExecuteTask</code>); <code>PUT /tasks/{id}</code> only reschedules <code>Active</code>/<code>Running</code> tasks; <code>activate</code> now accepts <code>Failed</code> so the UI Re-activate button works; all four test projects are in the <code>.sln</code>.</p>
       </div>
       <div style="overflow-x:auto; border: 1px solid var(--border); border-radius: 6px;">
         <table class="change-table">
           <thead><tr><th>#</th><th>Issue</th><th>Impact</th></tr></thead>
           <tbody>
-            <tr><td>1</td><td><code>Failed</code> tasks keep their recurring job; <code>ExecuteTask</code> has no status guard</td><td class="reason">A failed task re-runs on every cron tick and re-sends the failure email. Fix: unschedule on exhaustion, or guard at the top of <code>ExecuteTask</code>.</td></tr>
-            <tr><td>2</td><td><code>PUT /tasks/{id}</code> always calls <code>RescheduleTaskAsync</code></td><td class="reason">Updating a <code>Pending</code> task registers a recurring job → it starts running on cron without activation.</td></tr>
-            <tr><td>3</td><td><code>Completed</code> state unreachable on the execution path</td><td class="reason">Successful runs set the task back to <code>Active</code>; <code>MarkAsCompleted</code>/<code>TaskCompletedEvent</code> exist but are unused by the engine.</td></tr>
-            <tr><td>4</td><td>UI “Re-activate” button for <code>Failed</code> tasks</td><td class="reason">Calls <code>POST /{id}/activate</code> which only accepts <code>Pending</code> → returns 400. Align handler or remove the button.</td></tr>
-            <tr><td>5</td><td><code>TaskPausedEvent</code> has no handler; delayed retries ignore pause</td><td class="reason">A retry scheduled before a pause still fires and runs the paused task (same root cause as #1).</td></tr>
-            <tr><td>6</td><td>Metrics &amp; SMS are no-ops; CORS is <code>AllowAll</code></td><td class="reason">Seams exist (event → handler → service) but no exporter/provider is wired; tighten CORS if the UI moves off-origin.</td></tr>
-            <tr><td>7</td><td>Dashboard <code>deletedTasks</code> is always 0; log DTO <code>finishedAt</code> non-nullable; <code>VerifyPassword</code> not constant-time</td><td class="reason">Minor: repo filters soft-deleted rows; AutoMapper defaults for in-flight runs; use <code>FixedTimeEquals</code> for hardening.</td></tr>
+            <tr><td>1</td><td><code>Completed</code> state unreachable on the execution path</td><td class="reason">Successful runs set the task back to <code>Active</code>; <code>MarkAsCompleted</code>/<code>TaskCompletedEvent</code> exist but are unused by the engine.</td></tr>
+            <tr><td>2</td><td><code>TaskPausedEvent</code> has no handler</td><td class="reason">Raised by <code>Pause()</code>, silently dropped. (Delayed retries scheduled before a pause are now skipped by the <code>ExecuteTask</code> status guard.)</td></tr>
+            <tr><td>3</td><td>Metrics &amp; SMS are no-ops; CORS is <code>AllowAll</code></td><td class="reason">Seams exist (event → handler → service) but no exporter/provider is wired; tighten CORS if the UI moves off-origin.</td></tr>
+            <tr><td>4</td><td>Dashboard <code>deletedTasks</code> is always 0; log DTO <code>finishedAt</code> non-nullable; <code>VerifyPassword</code> not constant-time</td><td class="reason">Minor: repo filters soft-deleted rows; AutoMapper defaults for in-flight runs; use <code>FixedTimeEquals</code> for hardening.</td></tr>
           </tbody>
         </table>
       </div>

@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using MediatR;
 using TaskScheduler.Application.Interfaces;
 using TaskScheduler.Domain.Entities;
+using TaskScheduler.Domain.Enums;
 using TaskScheduler.Domain.ValueObjects;
 namespace TaskScheduler.Application.Tasks.Commands.UpdateTask
 {
@@ -40,9 +41,14 @@ namespace TaskScheduler.Application.Tasks.Commands.UpdateTask
 
             // Update DBContext
             await _repo.UpdateAsync(task);
-            
-            // Reschedule the task in the scheduler
-            await _scheduler.RescheduleTaskAsync(task);
+
+            // Only tasks that already have a job in the scheduler are rescheduled.
+            // Pending/paused/failed tasks have no recurring job yet, so updating them
+            // must not silently start them on the cron schedule.
+            if (task.Status is ScheduledTaskStatus.Active or ScheduledTaskStatus.Running)
+            {
+                await _scheduler.RescheduleTaskAsync(task);
+            }
 
             // Save change to DB
             await _unitOfWork.SaveChangesAsync();

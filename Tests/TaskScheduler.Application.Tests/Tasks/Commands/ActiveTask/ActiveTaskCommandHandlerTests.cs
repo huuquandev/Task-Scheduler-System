@@ -141,5 +141,95 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.ActiveTask
             // Assert
             schedulerMock.Verify(x => x.ScheduleTaskAsync(existingTask), Times.Once);
         }
+
+        [Fact]
+        public async Task Handle_WhenTaskIsFailed_ShouldActivateAndResetRetryCount()
+        {
+            // Arrange
+            var repoMock = new Mock<ITaskRepository>();
+            var unitOfWorkMock = new Mock<IUnitOfWork>();
+            var schedulerMock = new Mock<ISchedulerService>();
+
+            var existingTask = new ScheduledTask(
+                "Backup",
+                "Daily backup",
+                "0 0 * * *",
+                "backup.exe",
+                3);
+            existingTask.MarkAsActive();
+            existingTask.MarkAsFailed("Command failed");
+
+            repoMock.Setup(x => x.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync(existingTask);
+
+            var command = new ActiveTaskCommand(Guid.NewGuid());
+
+            var handler = new ActiveTaskHandler(repoMock.Object, unitOfWorkMock.Object, schedulerMock.Object);
+
+            // Act
+            await handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            existingTask.Status.Should().Be(ScheduledTaskStatus.Active);
+            existingTask.RetryCount.Should().Be(0);
+            schedulerMock.Verify(x => x.ScheduleTaskAsync(existingTask), Times.Once);
+        }
+
+        [Fact]
+        public async Task Handle_WhenTaskIsPaused_ShouldThrowInvalidOperationException()
+        {
+            // Arrange
+            var repoMock = new Mock<ITaskRepository>();
+            var unitOfWorkMock = new Mock<IUnitOfWork>();
+
+            var existingTask = new ScheduledTask(
+                "Backup",
+                "Daily backup",
+                "0 0 * * *",
+                "backup.exe",
+                3);
+            existingTask.MarkAsActive();
+            existingTask.Pause();
+
+            repoMock.Setup(x => x.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync(existingTask);
+
+            var command = new ActiveTaskCommand(Guid.NewGuid());
+
+            var handler = new ActiveTaskHandler(repoMock.Object, unitOfWorkMock.Object, Mock.Of<ISchedulerService>());
+
+            // Act
+            var action = () => handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            await action.Should().ThrowAsync<InvalidOperationException>().WithMessage("Only pending or failed tasks can be activated.");
+        }
+
+        [Fact]
+        public async Task Handle_WhenTaskIsRunning_ShouldThrowInvalidOperationException()
+        {
+            // Arrange
+            var repoMock = new Mock<ITaskRepository>();
+            var unitOfWorkMock = new Mock<IUnitOfWork>();
+
+            var existingTask = new ScheduledTask(
+                "Backup",
+                "Daily backup",
+                "0 0 * * *",
+                "backup.exe",
+                3);
+            existingTask.MarkAsActive();
+            existingTask.MarkAsRunning();
+
+            repoMock.Setup(x => x.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync(existingTask);
+
+            var command = new ActiveTaskCommand(Guid.NewGuid());
+
+            var handler = new ActiveTaskHandler(repoMock.Object, unitOfWorkMock.Object, Mock.Of<ISchedulerService>());
+
+            // Act
+            var action = () => handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            await action.Should().ThrowAsync<InvalidOperationException>().WithMessage("Only pending or failed tasks can be activated.");
+        }
     }
 }

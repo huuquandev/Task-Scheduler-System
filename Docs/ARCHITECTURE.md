@@ -155,10 +155,11 @@ src/TaskScheduler.Api/
 └── wwwroot/           index.html (dashboard), tasks.html, logs.html, login.html, js/api.js, css/app.css
 
 Tests/
-├── TaskScheduler.Domain.Tests/          (in .sln)
-├── TaskScheduler.Api.Tests/             (in .sln)
-├── TaskScheduler.Application.Tests/     (on disk, NOT registered in .sln)
-└── TaskScheduler.Infrastructure.Tests/  (on disk, NOT registered in .sln)
+├── TaskScheduler.Domain.Tests/
+├── TaskScheduler.Application.Tests/
+├── TaskScheduler.Infrastructure.Tests/
+└── TaskScheduler.Api.Tests/
+(all four test projects are registered in the `.sln`)
 ```
 
 ### 3.3 Startup pipeline (what `Program.cs` does, in order)
@@ -312,10 +313,12 @@ Docker compose exposes these as `DB_PASSWORD`, `JWT_SECRET`, `SMTP_HOST`,
                                            │            │   Hangfire job (60s/120s/240s/300s cap)
                                            │            │
                                            │            └─ RetryCount > MaxRetries:
-                                           │                 → Failed (TaskFailedEvent →
+                                           │                 → Failed + recurring job
+                                           │                   removed (TaskFailedEvent →
                                            │                   error log + admin email)
                                            │
-      Failed tasks: trigger is still allowed (POST /{id}/trigger)
+      Failed tasks: trigger is still allowed (POST /{id}/trigger), or
+      re-activate (POST /{id}/activate) to reset the retry budget
 ```
 
 ### 4.3 Transition rules (as enforced by the code)
@@ -323,19 +326,20 @@ Docker compose exposes these as `DB_PASSWORD`, `JWT_SECRET`, `SMTP_HOST`,
 | Transition | Triggered by | Guard (where enforced) | Hangfire effect |
 |---|---|---|---|
 | — → `Pending` | `POST /tasks` (ctor) | cron validated by `CronExpression.Create` | **none** — job not registered |
-| `Pending` → `Active` | `POST /tasks/{id}/activate` | handler: "Only pending tasks can be activated." | `AddOrUpdate` recurring job (id = task GUID, cron = task cron) |
+| `Pending`/`Failed` → `Active` | `POST /tasks/{id}/activate` | handler: "Only pending or failed tasks can be activated."; re-activating `Failed` first resets `RetryCount` | `AddOrUpdate` recurring job (id = task GUID, cron = task cron) |
 | `Active` → `Paused` | `POST /tasks/{id}/pause` | **entity**: "Only active task can be paused." | recurring job removed |
 | `Paused` → `Active` | `POST /tasks/{id}/resume` | handler: "Only paused tasks can be resumed." | recurring job re-registered |
 | `Active`/`Failed` → (run) | `POST /tasks/{id}/trigger` (rate-limited) | handler: "Only Active or Failed tasks can be triggered manually." | one **background** (non-recurring) job enqueued |
-| *(any)* → `Running` | Hangfire fires (cron, trigger, or delayed retry) | **none** in `TaskExecutionService.ExecuteTask` | — |
+| *(any)* → `Running` | Hangfire fires (cron, trigger, or delayed retry) | `ExecuteTask` guard: only `Active`/`Failed` tasks execute; any other state is skipped with a warning log | — |
 | `Running` → `Active` | run succeeded | — | `NextRunAt` recomputed, `RetryCount` reset |
 | `Running` → `Active` + delayed job | run failed, retries left | `RetryCount <= MaxRetries` (checked **after** increment) | one **delayed** job with backoff |
-| `Running` → `Failed` | run failed, retries exhausted | `RetryCount > MaxRetries` | **recurring job is NOT removed** (see [§14](#14-known-issues--design-notes)) |
+| `Running` → `Failed` | run failed, retries exhausted | `RetryCount > MaxRetries` | **recurring job removed** (`UnscheduleTaskAsync`) — cron ticks and failure emails stop |
 
 Rules of thumb:
-- A task is only ever *scheduled* by the explicit lifecycle actions above — except that
-  `PUT /tasks/{id}` (update) calls `RescheduleTaskAsync` **unconditionally**, which also
-  registers a recurring job for `Pending` tasks (see [§14](#14-known-issues--design-notes)).
+- A task is only ever *scheduled* by the explicit lifecycle actions above.
+  `PUT /tasks/{id}` (update) calls `RescheduleTaskAsync` **only** when the task is
+  `Active` or `Running` — updating a `Pending`/`Paused`/`Failed` task changes the row
+  without touching the scheduler.
 - Soft-deleted tasks (`IsDeleted = true`) are invisible to the repositories, and a fired
   job for a deleted task simply logs "Task not found" and returns.
 - Domain events raised during the lifecycle: `TaskCreatedEvent` (ctor),
@@ -346,19 +350,24 @@ Rules of thumb:
 
 On each run (`TaskExecutionService.ExecuteTask`):
 
-1. A `TaskExecutionLog` is created (`Running`, `StartedAt = now`).
-2. The task is set to `Running` (`LastRunAt = now`) and everything is persisted.
-3. The command runs (see [§8](#8-execution-engine--retries)); stdout/stderr, exit code
+1. **Status guard** — if the task is not `Active` (scheduled/retry execution) and not
+   `Failed` (manual re-run via trigger), execution is **skipped** with a warning log
+   and no execution-log row is written. This blocks stray cron ticks for tasks whose
+   job should be gone, and delayed retries that outlive a pause.
+2. A `TaskExecutionLog` is created (`Running`, `StartedAt = now`).
+3. The task is set to `Running` (`LastRunAt = now`) and everything is persisted.
+4. The command runs (see [§8](#8-execution-engine--retries)); stdout/stderr, exit code
    and wall-clock duration are captured.
-4. **Success path** (`exit code == 0`): log → `Success` (+`FinishedAt`, `DurationMs`),
+5. **Success path** (`exit code == 0`): log → `Success` (+`FinishedAt`, `DurationMs`),
    task → `Active`, `NextRunAt` recomputed via Cronos, `RetryCount` reset to 0.
-5. **Failure path** (non-zero exit, timeout, or exception): log → `Failed`
+6. **Failure path** (non-zero exit, timeout, or exception): log → `Failed`
    (`ErrorMessage` = stderr, or "Command exited with code N" when stderr is empty),
    `RetryCount++`, then:
    - `RetryCount <= MaxRetries` → task stays `Active` and a **delayed** Hangfire job
      re-runs it after `min(300, 2^RetryCount × 30)` seconds;
-   - `RetryCount > MaxRetries` → task → `Failed`, which raises `TaskFailedEvent`
-     → error log + **admin email** (if `Notifications:AdminEmail` is set).
+   - `RetryCount > MaxRetries` → task → `Failed` and the **recurring job is removed**
+     (`UnscheduleTaskAsync`) — the task stops running on cron; the `TaskFailedEvent`
+     raises the error log + **admin email** (if `Notifications:AdminEmail` is set).
 
 **Backoff table** (delay computed with the *already-incremented* `RetryCount`):
 
@@ -521,7 +530,7 @@ payload is logged as `[REDACTED]` (passwords never hit the log).
 | `GET /tasks/{id}` | — | `TaskDto` |
 | `PUT /tasks/{id}` | partial body (any subset) | `{}` (`Unit`) |
 | `DELETE /tasks/{id}` | — | `{}` — soft delete + unschedule |
-| `POST /tasks/{id}/activate` | — | `{}` — `Pending` → `Active`, registers recurring job |
+| `POST /tasks/{id}/activate` | — | `{}` — `Pending`/`Failed` → `Active`, registers recurring job (re-activating `Failed` resets the retry count) |
 | `POST /tasks/{id}/pause` | — | `{}` — `Active` → `Paused`, removes recurring job |
 | `POST /tasks/{id}/resume` | — | `{}` — `Paused` → `Active`, re-registers job |
 | `POST /tasks/{id}/trigger` | — | `{}` — immediate background run (429 over 10/min) |
@@ -573,9 +582,9 @@ Validation: `name` non-empty ≤ 100; `command` non-empty; `cronExpression` non-
 | Command | Returns | Guard / behavior |
 |---|---|---|
 | `CreateTaskCommand(Name, Description, CronExpression, Command, MaxRetries)` | `Guid` | Builds `ScheduledTask` (status `Pending`), computes `NextRunAt`, saves. **Does not register a Hangfire job** |
-| `UpdateTaskCommand(Id, Name?, Description?, CronExpression?, Command?, MaxRetries?)` | `Unit` | 400 if missing/deleted; applies non-null fields; **always** calls `RescheduleTaskAsync` |
+| `UpdateTaskCommand(Id, Name?, Description?, CronExpression?, Command?, MaxRetries?)` | `Unit` | 400 if missing/deleted; applies non-null fields; calls `RescheduleTaskAsync` **only** when status is `Active`/`Running` |
 | `DeleteTaskCommand(Id)` | `Unit` | Soft delete + `UnscheduleTaskAsync` |
-| `ActiveTaskCommand(Id)` | `Unit` | "Only pending tasks can be activated." → `ScheduleTaskAsync` |
+| `ActiveTaskCommand(Id)` | `Unit` | "Only pending or failed tasks can be activated."; `Failed` → `ResetRetryCount()` first → `ScheduleTaskAsync` |
 | `PauseTaskCommand(Id)` | `Unit` | Entity guard "Only active task can be paused." → `UnscheduleTaskAsync` |
 | `ResumeTaskCommand(Id)` | `Unit` | "Only paused tasks can be resumed." → `RescheduleTaskAsync` |
 | `TriggerTaskCommand(Id)` | `Unit` | "Only Active or Failed tasks can be triggered manually." → `ITaskExecutionService.TriggerNow` (background job) |
@@ -642,7 +651,8 @@ commands carry no validators — their guards are in handler/entity code.
 | Dashboard | `/hangfire`, protected by `HangfireAuthorizationFilter` (loopback IPs only) |
 
 **Which operation touches Hangfire:** create → *none*; activate → add recurring;
-pause/delete → remove; resume/update → add-or-update; trigger → background job;
+pause/delete/failed (retries exhausted) → remove; resume → add-or-update; update →
+add-or-update **only for `Active`/`Running` tasks**; trigger → background job;
 failed run with retries left → delayed job. Because the job store is PostgreSQL,
 **recurring schedules survive an app restart automatically** — no re-registration code
 is needed at startup (only database migrations run at boot).
@@ -658,13 +668,16 @@ on failure:
         Hangfire.Schedule(TaskExecutionService.ExecuteTask, delay)
     else:
         task → Failed          # raises TaskFailedEvent → error log + admin email
+        UnscheduleTaskAsync    # recurring job removed → no more cron ticks / emails
 ```
 
 Properties worth knowing:
 - Retries are **per-task, cumulative across runs** — a success resets `RetryCount` to 0.
-- A task that is `Failed` keeps its recurring job registered (see [§14](#14-known-issues--design-notes)).
+- A task that is `Failed` has its recurring job **removed** — it stays dormant until
+  re-activated via `POST /tasks/{id}/activate`, which resets the retry budget.
 - Delayed retry jobs are independent of the recurring job — pausing a task does not
-  cancel an already-scheduled retry (see [§14](#14-known-issues--design-notes)).
+  cancel an already-scheduled retry, but the `ExecuteTask` status guard skips it, so
+  the task remains `Paused`.
 
 ---
 
@@ -725,8 +738,8 @@ once committed to git history should be treated as rotated.
        `AddInfrastructure`, Swagger & Hangfire dashboard off, and
        `appsettings.Testing.json` supplies the test JWT values
   6. `actions/upload-artifact@v4` → `test-results` (`./TestResults/*.xml`), `if: always()`
-- **Note:** the solution only registers `Domain.Tests` + `Api.Tests`, so CI runs those
-  two suites (see [§12](#12-automated-testing)).
+- **Note:** the solution registers all four test projects, so CI runs the full suite
+  (see [§12](#12-automated-testing)).
 
 ### 10.3 CD — `.github/workflows/cd.yml`
 
@@ -881,9 +894,11 @@ curl -s -X POST $BASE/api/v1/tasks -H "$AUTH" -H 'Content-Type: application/json
 Expected sequence (`maxRetries = 1`):
 
 1. Trigger run #1 fails → `RetryCount = 1 ≤ 1` → task stays `Active`, delayed retry **60 s** later
-2. Retry run #2 fails → `RetryCount = 2 > 1` → task `Failed`, `TaskFailedEvent` →
-   error log + email to `Notifications:AdminEmail` (when configured)
+2. Retry run #2 fails → `RetryCount = 2 > 1` → task `Failed`, **recurring job removed**,
+   `TaskFailedEvent` → error log + email to `Notifications:AdminEmail` (when configured)
 3. Both runs visible in `GET /tasks/{id}/logs` with `status: "Failed"` and the stderr message
+4. Optional: `POST /tasks/{id}/activate` re-activates the failed task (fresh retry
+   budget) — the same action the UI *Re-activate* button performs
 
 **Step 7 — monitor**
 
@@ -911,12 +926,12 @@ in-memory/SQLite databases.
 | Project | Registered in `.sln` | What it covers |
 |---|---|---|
 | `TaskScheduler.Domain.Tests` | ✅ | Entity state transitions & guards, `CronExpression` value object, domain events; builders (`ScheduledTaskBuilder`, `ExecutionLogBuilder`, `UserBuilder`) |
-| `TaskScheduler.Application.Tests` | ❌ | All CQRS handlers (happy + guard paths), validators, `LoggingBehavior`/`ValidationBehavior`, mappers; `BaseTest` + `MapperFixture` |
-| `TaskScheduler.Infrastructure.Tests` | ❌ | `TaskRepository`/`TaskExecutionLogRepository`/`UserRepository` (SQLite/InMemory), `HangfireSchedulerService`, `TaskJob`, `TokenService`, event-handler dispatch |
+| `TaskScheduler.Application.Tests` | ✅ | All CQRS handlers (happy + guard paths), validators, `LoggingBehavior`/`ValidationBehavior`, mappers; `BaseTest` + `MapperFixture` |
+| `TaskScheduler.Infrastructure.Tests` | ✅ | `TaskRepository`/`TaskExecutionLogRepository`/`UserRepository` (SQLite/InMemory), `HangfireSchedulerService`, `TaskJob`, `TokenService`, event-handler dispatch, `TaskExecutionService` (status guard, success/failure, retry scheduling, unschedule on exhaustion) |
 | `TaskScheduler.Api.Tests` | ✅ | `AuthController` & `TasksController` end-to-end over `WebApplicationFactory` (SQLite), `CustomWebApplicationFactory` injects the Testing config |
 
 ```bash
-dotnet test                                            # solution-level: Domain.Tests + Api.Tests
+dotnet test                                            # solution-level: all four test projects
 dotnet test Tests/TaskScheduler.Application.Tests/TaskScheduler.Application.Tests.csproj
 dotnet test Tests/TaskScheduler.Infrastructure.Tests/TaskScheduler.Infrastructure.Tests.csproj
 ```
@@ -990,44 +1005,44 @@ No `IEntityTypeConfiguration` — convention-mapped.
 ## 14. Known Issues & Design Notes
 
 Deliberately documented so the next developer knows what is a design decision and what
-is a gap:
+is a gap.
 
-1. **`Failed` tasks keep running.** When retries are exhausted the recurring Hangfire
-   job is **not** removed and `ExecuteTask` has no status guard — every subsequent cron
-   tick re-runs the failing command (and re-sends the failure email). Fix ideas:
-   `UnscheduleTaskAsync` on the exhaustion path, or a status check at the top of
-   `ExecuteTask`.
-2. **`PUT /tasks/{id}` reschedules unconditionally.** `UpdateTaskHandler` calls
-   `RescheduleTaskAsync` for *any* state — updating a `Pending` task registers a
-   recurring job, so it starts running on cron without ever being activated.
-3. **`Completed` is unreachable on the execution path.** Successful runs set the task
+**Fixed recently** (each now covered by unit tests):
+
+- **`Failed` tasks keep running.** When retries are exhausted the recurring Hangfire
+  job is now **removed** (`UnscheduleTaskAsync`), and `ExecuteTask` skips any task
+  that is not `Active`/`Failed` — including delayed retries scheduled before a pause.
+  Cron ticks and repeated failure emails no longer happen.
+- **`PUT /tasks/{id}` reschedules unconditionally.** `UpdateTaskHandler` now calls
+  `RescheduleTaskAsync` only for `Active`/`Running` tasks; updating a `Pending` task
+  no longer registers a recurring job.
+- **Frontend/backend mismatch on "Re-activate".** `POST /tasks/{id}/activate` now
+  accepts `Pending` **and** `Failed`; re-activating a `Failed` task resets its retry
+  budget, so the UI *Re-activate* button works.
+- **`Application.Tests` & `Infrastructure.Tests` not in the `.sln`** — both projects
+  are registered, so CI runs all four test suites.
+
+Remaining:
+
+1. **`Completed` is unreachable on the execution path.** Successful runs set the task
    back to `Active` (`MarkAsActive`), so `ScheduledTaskStatus.Completed` and
    `TaskCompletedEvent` are never produced by the engine; they exist for completeness.
-4. **Frontend/backend mismatch on "Re-activate".** `tasks.html` offers *Re-activate*
-   for `Failed` tasks, but `POST /tasks/{id}/activate` only accepts `Pending` — the
-   button currently returns 400. Either the handler should also accept `Failed` or the
-   button should be removed.
-5. **`TaskPausedEvent` has no handler** (raised, silently dropped).
-6. **Metrics are no-ops.** `MetricsService.Increment*` do nothing; the seam
+2. **`TaskPausedEvent` has no handler** (raised, silently dropped).
+3. **Metrics are no-ops.** `MetricsService.Increment*` do nothing; the seam
    (event → handler → service) is ready for a real exporter (e.g. Prometheus).
-7. **`ISmsService` is a `NoOp`** (logs only) — placeholder for a real provider.
-8. **Retry/`Paused` race.** A delayed retry job scheduled before a pause still fires
-   and runs the paused task (`ExecuteTask` has no status guard — same root cause as #1).
-9. **`VerifyPassword` is not constant-time** (early return on first byte mismatch).
+4. **`ISmsService` is a `NoOp`** (logs only) — placeholder for a real provider.
+5. **`VerifyPassword` is not constant-time** (early return on first byte mismatch).
    PBKDF2 itself is fine; the comparison should use
    `CryptographicOperations.FixedTimeEquals` for hardening.
-10. **Dashboard `deletedTasks` is always 0** — the repository filters soft-deleted
-    rows, so the count can never be non-zero.
-11. **UI reads `command` / `maxRetries`** in the task detail modal, but `TaskDto`
-    doesn't expose them → those fields render empty from the API.
-12. **`TaskExecutionLog` dual FK** (`TaskId` + `ScheduledTaskId`) — one is enough;
-    the redundant navigation FK predates the scalar one.
-13. **`Application.Tests` & `Infrastructure.Tests` are not in the `.sln`** — CI only
-    runs `Domain.Tests` + `Api.Tests`. Adding the two projects to the solution is a
-    one-liner each and extends CI coverage.
-14. **CORS is `AllowAll`** — fine for this deployment shape, but should be scoped if
-    the UI ever moves to a separate origin.
-15. Minor: `MarkAsCompleted` doesn't bump `UpdatedAt` (all other mutators do);
+6. **Dashboard `deletedTasks` is always 0** — the repository filters soft-deleted
+   rows, so the count can never be non-zero.
+7. **UI reads `command` / `maxRetries`** in the task detail modal, but `TaskDto`
+   doesn't expose them → those fields render empty from the API.
+8. **`TaskExecutionLog` dual FK** (`TaskId` + `ScheduledTaskId`) — one is enough;
+   the redundant navigation FK predates the scalar one.
+9. **CORS is `AllowAll`** — fine for this deployment shape, but should be scoped if
+   the UI ever moves to a separate origin.
+10. Minor: `MarkAsCompleted` doesn't bump `UpdatedAt` (all other mutators do);
     `TaskRepository.GetPagedAsync` applies the status filter twice (harmless);
     `ExecutionLogDto.FinishedAt` is non-nullable while the column is nullable
     (AutoMapper yields `default(DateTime)` for in-flight runs).

@@ -7,6 +7,7 @@ using Moq;
 using TaskScheduler.Application.Tasks.Commands.UpdateTask;
 using TaskScheduler.Application.Interfaces;
 using TaskScheduler.Domain.Entities;
+using TaskScheduler.Domain.Enums;
 
 namespace TaskScheduler.Application.Tests.Tasks.Commands.UpdateTask
 {
@@ -154,6 +155,7 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.UpdateTask
                 "0 0 * * *",
                 "backup.exe",
                 3);
+            existingTask.MarkAsActive();
 
             repoMock.Setup(x => x.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync(existingTask);
 
@@ -173,6 +175,78 @@ namespace TaskScheduler.Application.Tests.Tasks.Commands.UpdateTask
 
             // Assert
             schedulerMock.Verify(x => x.RescheduleTaskAsync(existingTask), Times.Once);
+        }
+
+        [Fact]
+        public async Task Handle_WhenTaskIsPending_ShouldNotRescheduleTask()
+        {
+            // Arrange
+            var repoMock = new Mock<ITaskRepository>();
+            var schedulerMock = new Mock<ISchedulerService>();
+
+            var existingTask = new ScheduledTask(
+                "Backup",
+                "Daily backup",
+                "0 0 * * *",
+                "backup.exe",
+                3);
+
+            repoMock.Setup(x => x.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync(existingTask);
+
+            var command = new UpdateTaskCommand(
+                Guid.NewGuid(),
+                "Updated Backup",
+                "Updated description",
+                "30 0 * * *",
+                "updated_backup.exe",
+                5);
+
+            var unitOfWorkMock = new Mock<IUnitOfWork>();
+            var handler = new UpdateTaskHandler(repoMock.Object, unitOfWorkMock.Object, schedulerMock.Object);
+
+            // Act
+            await handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            existingTask.Status.Should().Be(ScheduledTaskStatus.Pending);
+            schedulerMock.Verify(x => x.RescheduleTaskAsync(It.IsAny<ScheduledTask>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task Handle_WhenTaskIsPaused_ShouldNotRescheduleTask()
+        {
+            // Arrange
+            var repoMock = new Mock<ITaskRepository>();
+            var schedulerMock = new Mock<ISchedulerService>();
+
+            var existingTask = new ScheduledTask(
+                "Backup",
+                "Daily backup",
+                "0 0 * * *",
+                "backup.exe",
+                3);
+            existingTask.MarkAsActive();
+            existingTask.Pause();
+
+            repoMock.Setup(x => x.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync(existingTask);
+
+            var command = new UpdateTaskCommand(
+                Guid.NewGuid(),
+                "Updated Backup",
+                "Updated description",
+                "30 0 * * *",
+                "updated_backup.exe",
+                5);
+
+            var unitOfWorkMock = new Mock<IUnitOfWork>();
+            var handler = new UpdateTaskHandler(repoMock.Object, unitOfWorkMock.Object, schedulerMock.Object);
+
+            // Act
+            await handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            existingTask.Status.Should().Be(ScheduledTaskStatus.Paused);
+            schedulerMock.Verify(x => x.RescheduleTaskAsync(It.IsAny<ScheduledTask>()), Times.Never);
         }
 
         [Fact]

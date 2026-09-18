@@ -28,8 +28,12 @@ namespace TaskScheduler.Application.Tasks.Commands.ActiveTask
             if(task.IsDeleted)
                 throw new InvalidOperationException("Task deleted");
 
-            if(task.Status != Domain.Enums.ScheduledTaskStatus.Pending)
-                throw new InvalidOperationException("Only pending tasks can be activated.");
+            if (task.Status != Domain.Enums.ScheduledTaskStatus.Pending && task.Status != Domain.Enums.ScheduledTaskStatus.Failed)
+                throw new InvalidOperationException("Only pending or failed tasks can be activated.");
+
+            // A failed task that is re-activated gets a fresh retry budget.
+            if (task.Status == Domain.Enums.ScheduledTaskStatus.Failed)
+                task.ResetRetryCount();
 
             task.MarkAsActive();
             await _repo.UpdateAsync(task);
